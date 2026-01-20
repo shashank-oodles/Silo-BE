@@ -1,0 +1,127 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+enum TicketPriority {
+  HIGH
+  MID
+  LOW
+}
+
+enum TicketStatus {
+  OPEN
+  OVERDUE
+  DONE
+  REOPEN
+}
+
+
+model RequestForm {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  tags        Json
+  reviewerId  String?
+  autoReplyEnabled Boolean @default(false)
+  autoReplyMessage String?
+  isActive    Boolean  @default(true)
+
+  organization    String
+
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tickets     Ticket[]
+}
+
+model Ticket {
+  id              String   @id @default(uuid())
+
+  userName        String
+
+  organizationId  String
+  assignedTeamId  String?
+  reviewerId      String?
+
+  legalOwnerId    String?          
+  priority        TicketPriority?  
+  workflowStatus  TicketStatus? @default(OPEN)
+  reviewed        Boolean  @default(false)
+
+  categoryId      String?
+  requestFormId   String?
+
+  email           String
+  description     String
+  payload         Json
+
+  response        String?
+  respondedAt     DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  category        Category?     @relation(fields: [categoryId], references: [id])
+  requestForm     RequestForm?  @relation(fields: [requestFormId], references: [id])
+  messages        TicketMessage[]
+
+  @@index([organizationId])
+  @@index([assignedTeamId])
+  @@index([reviewerId])
+  @@index([legalOwnerId])
+  @@index([priority])
+  @@index([workflowStatus])
+  @@index([categoryId])
+  @@index([requestFormId])
+}
+
+
+model TicketMessage {
+  id        String   @id @default(uuid())
+
+  ticketId  String
+  senderId  String?
+  senderType String 
+
+  message   String
+
+  attachments Json?
+
+  createdAt DateTime @default(now())
+
+  ticket    Ticket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+  @@index([senderId])
+}
+
+model Category {
+  id             String   @id @default(uuid())
+  name           String
+  organizationId String
+
+  assignedTeamId String
+  reviewerId     String?
+
+  autoReplyEnabled Boolean @default(false)
+  autoReplyMessage String?
+
+  isActive       Boolean  @default(true)
+
+  tickets        Ticket[]
+
+  @@unique([organizationId, name])
+}
+
