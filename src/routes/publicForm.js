@@ -14,7 +14,7 @@ const router = express.Router();
 router.post("/createForm", requireAuth, requireOwner, createRequestForm)  //✅
 router.post("/forms/:slug/submit", requireAuth, requireOwner, submitPublicTicket); //✅
 router.patch("/form/reviewer-id-update", requireAuth, requireOwner, updateFormReviewerId); //✅
-router.get("/form/reviewers", requireAuth, requireOwner, getFormReviewers); //✅
+router.get("/form/reviewers/:organizationId", requireAuth, requireOwner, getFormReviewers); //✅
 router.get("/get-request-forms/:organizationId", requireAuth, requireOwner, getRequestFormsByOrganization); //✅
 router.put("/update-request-form/:formId/:organizationId", requireAuth, requireOwner, updateRequestForm) //✅
 router.delete("/delete-request-form/:formId/:organizationId", requireAuth, requireOwner, deleteRequestForm) //✅

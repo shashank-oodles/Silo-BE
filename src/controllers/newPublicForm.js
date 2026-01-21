@@ -503,7 +503,7 @@ export const submitPublicTicket = async (req, res, next) => {
 
 export const getFormReviewers = async (req, res, next) => {
   try {
-    const { organizationId } = req.body;
+    const { organizationId } = req.params;
 
     if (!organizationId) {
       return res.status(400).json({
