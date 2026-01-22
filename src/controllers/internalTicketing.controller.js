@@ -28,40 +28,40 @@ const getAllTeams = async (req, res, next) => {
     }
 };
 
-const getAllLegalOwners = async (req, res, next) => {
-    try {
-        const { assignedTeamId } = req.params;
+// const getAllLegalOwners = async (req, res, next) => {
+//     try {
+//         const { assignedTeamId, organizationId } = req.params;
 
-        const { data: legalOwners, error } = await supabaseAdmin
-            .from("team_members")
-            .select("*")
-            .eq("team_id", assignedTeamId);
+//         const { data: legalOwners, error } = await supabaseAdmin
+//             .from("team_members")
+//             .select("*")
+//             .eq("team_id", assignedTeamId);
 
-        const memberIds = legalOwners.map(owner => owner.member_id);
+//         const memberIds = legalOwners.map(owner => owner.member_id);
 
-        const { data: user_Ids, error: membersError } = await supabaseAdmin
-            .from("member")
-            .select("*")
-            .in("id", memberIds)
-            .eq("role", "legal");
+//         const { data: user_Ids, error: membersError } = await supabaseAdmin
+//             .from("member")
+//             .select("*")
+//             .in("id", memberIds)
+//             .eq("role", "legal");
 
-        const userIds = user_Ids.map(user => user.user_id);
+//         const userIds = user_Ids.map(user => user.user_id);
 
-        const {data: users, error: usersError} = await supabaseAdmin
-            .from("user")
-            .select("id, name, email")
-            .in("id", userIds);
+//         const {data: users, error: usersError} = await supabaseAdmin
+//             .from("user")
+//             .select("id, name, email")
+//             .in("id", userIds);
         
 
-        if (error) {
-            return res.status(500).json({ error: "Failed to fetch legal owners" });
-        }
+//         if (error) {
+//             return res.status(500).json({ error: "Failed to fetch legal owners" });
+//         }
 
-        return res.status(200).json({ users });
-    } catch (error) {
+//         return res.status(200).json({ users });
+//     } catch (error) {
 
-    }
-}
+//     }
+// }
 
 // const createCategory = async (req, res, next) => {
 //     try {
@@ -142,6 +142,81 @@ const getAllLegalOwners = async (req, res, next) => {
 //         next(err);
 //     }
 // };
+
+const getAllLegalOwners = async (req, res, next) => {
+  try {
+    const { assignedTeamId, organizationId } = req.body;
+
+    if (!organizationId) {
+      return res.status(400).json({
+        error: "organizationId is required"
+      });
+    }
+
+    let memberIds = [];
+
+    // 1️⃣ If assignedTeamId is provided → fetch members from that team
+    if (assignedTeamId) {
+      const { data: teamMembers, error: teamError } = await supabaseAdmin
+        .from("team_members")
+        .select("member_id")
+        .eq("team_id", assignedTeamId);
+
+      if (teamError) {
+        return res.status(500).json({
+          error: "Failed to fetch team members"
+        });
+      }
+
+      memberIds = teamMembers.map(m => m.member_id);
+    }
+
+    // 2️⃣ Fetch legal members (team-scoped OR org-wide)
+    let memberQuery = supabaseAdmin
+      .from("member")
+      .select("user_id")
+      .eq("organization_id", organizationId)
+      .eq("role", "legal");
+
+    if (assignedTeamId) {
+      if (memberIds.length === 0) {
+        return res.status(200).json({ users: [] });
+      }
+      memberQuery = memberQuery.in("id", memberIds);
+    }
+
+    const { data: members, error: memberError } = await memberQuery;
+
+    if (memberError) {
+      return res.status(500).json({
+        error: "Failed to fetch legal members"
+      });
+    }
+
+    if (!members || members.length === 0) {
+      return res.status(200).json({ users: [] });
+    }
+
+    // 3️⃣ Fetch user details
+    const userIds = members.map(m => m.user_id);
+
+    const { data: users, error: userError } = await supabaseAdmin
+      .from("user")
+      .select("id, name, email")
+      .in("id", userIds);
+
+    if (userError) {
+      return res.status(500).json({
+        error: "Failed to fetch users"
+      });
+    }
+
+    return res.status(200).json({ users });
+
+  } catch (err) {
+    next(err);
+  }
+};
 
 const createCategory = async (req, res, next) => {
   try {
@@ -404,6 +479,7 @@ const createInternalTicket = async (req, res, next) => {
       description,
       startDate,
       endDate,
+      note,
       attachments = []
     } = req.body;
 
@@ -448,6 +524,7 @@ const createInternalTicket = async (req, res, next) => {
         categoryId,
         assignedTeamId: category.assignedTeamId,
         reviewerId: category.reviewerId ?? null,
+        note: note ?? null,
 
         workflowStatus: "OPEN", // REQUIRED
         reviewed: false,        // REQUIRED
@@ -677,29 +754,114 @@ const getTicketsByReviewer = async (req, res, next) => {
   }
 };
 
+// const reviewTicket = async (req, res, next) => {
+//   try {
+//     const { ticketId } = req.params;
+//     const { legalOwnerId, priority, workflowStatus, organizationId } = req.body;
+
+//     if (!ticketId) {
+//       return res.status(400).json({
+//         error: "ticketId is required"
+//       });
+//     }
+
+//     const ticket = await prisma.ticket.findUnique({
+//       where: { id: ticketId }
+//     });
+
+//     if (!ticket) {
+//       return res.status(404).json({ error: "Ticket not found" });
+//     }
+
+//     // if (ticket.organizationId !== organizationId) {
+//     //   return res.status(403).json({ error: "Unauthorized" });
+//     // }
+
+//     const updateData = {};
+
+//     if (legalOwnerId !== undefined) {
+//       updateData.legalOwnerId = legalOwnerId;
+//     }
+
+//     if (priority !== undefined) {
+//       updateData.priority = priority;
+//     }
+
+//     if (workflowStatus !== undefined) {
+//       updateData.workflowStatus = workflowStatus;
+//     }
+
+//     const finalLegalOwner =
+//       legalOwnerId !== undefined ? legalOwnerId : ticket.legalOwnerId;
+
+//     const finalPriority =
+//       priority !== undefined ? priority : ticket.priority;
+
+//     const finalWorkflowStatus =
+//       workflowStatus !== undefined
+//         ? workflowStatus
+//         : ticket.workflowStatus;
+
+//     updateData.reviewed = Boolean(
+//       finalLegalOwner &&
+//       finalPriority &&
+//       finalWorkflowStatus
+//     );
+
+//     const updatedTicket = await prisma.ticket.update({
+//       where: { id: ticketId },
+//       data: updateData
+//     });
+
+//     return res.status(200).json({
+//       message: "Ticket updated successfully",
+//       ticket: {
+//         id: updatedTicket.id,
+//         legalOwnerId: updatedTicket.legalOwnerId,
+//         priority: updatedTicket.priority,
+//         workflowStatus: updatedTicket.workflowStatus,
+//         reviewed: updatedTicket.reviewed
+//       }
+//     });
+
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
 const reviewTicket = async (req, res, next) => {
   try {
     const { ticketId } = req.params;
     const { legalOwnerId, priority, workflowStatus, organizationId } = req.body;
 
-    if (!ticketId) {
+    if (!ticketId || !organizationId) {
       return res.status(400).json({
-        error: "ticketId is required"
+        error: "ticketId and organizationId are required"
       });
     }
 
-    const ticket = await prisma.ticket.findUnique({
-      where: { id: ticketId }
-    });
+    // 1️⃣ Fetch ticket (org-scoped)
+    const { data: ticket, error: fetchError } = await supabaseAdmin
+      .from("Ticket")
+      .select("*")
+      .eq("id", ticketId)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
 
-    if (!ticket) {
-      return res.status(404).json({ error: "Ticket not found" });
+    if (fetchError) {
+      console.log(fetchError)
+      return res.status(500).json({
+        error: "Failed to fetch ticket"
+      });
     }
 
-    // if (ticket.organizationId !== organizationId) {
-    //   return res.status(403).json({ error: "Unauthorized" });
-    // }
+    if (!ticket) {
+      return res.status(404).json({
+        error: "Ticket not found or unauthorized"
+      });
+    }
 
+    // 2️⃣ Build update payload
     const updateData = {};
 
     if (legalOwnerId !== undefined) {
@@ -714,6 +876,7 @@ const reviewTicket = async (req, res, next) => {
       updateData.workflowStatus = workflowStatus;
     }
 
+    // 3️⃣ Compute reviewed flag (same logic as Prisma version)
     const finalLegalOwner =
       legalOwnerId !== undefined ? legalOwnerId : ticket.legalOwnerId;
 
@@ -731,20 +894,27 @@ const reviewTicket = async (req, res, next) => {
       finalWorkflowStatus
     );
 
-    const updatedTicket = await prisma.ticket.update({
-      where: { id: ticketId },
-      data: updateData
-    });
+    // 4️⃣ Update ticket (org-scoped)
+    const { data: updatedTicket, error: updateError } = await supabaseAdmin
+      .from("Ticket")
+      .update(updateData)
+      .eq("id", ticketId)
+      .eq("organization_id", organizationId)
+      .select(
+        "id, legalOwnerId, priority, workflowStatus, reviewed"
+      )
+      .single();
+
+    if (updateError) {
+      return res.status(500).json({
+        error: "Failed to update ticket",
+        details: updateError.message
+      });
+    }
 
     return res.status(200).json({
       message: "Ticket updated successfully",
-      ticket: {
-        id: updatedTicket.id,
-        legalOwnerId: updatedTicket.legalOwnerId,
-        priority: updatedTicket.priority,
-        workflowStatus: updatedTicket.workflowStatus,
-        reviewed: updatedTicket.reviewed
-      }
+      ticket: updatedTicket
     });
 
   } catch (err) {
@@ -752,6 +922,182 @@ const reviewTicket = async (req, res, next) => {
   }
 };
 
+const getTicketReviewDetails = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+    // const { organizationId } = req;
+
+    if (!ticketId) {
+      return res.status(400).json({
+        error: "ticketId is required"
+      });
+    }
+
+    // if (!organizationId) {
+    //   return res.status(400).json({
+    //     error: "organizationId is required"
+    //   });
+    // }
+
+    const { data: ticket, error } = await supabaseAdmin
+      .from("Ticket")
+      .select(`
+        id,
+        legalOwnerId,
+        priority,
+        workflowStatus
+      `)
+      .eq("id", ticketId)
+      // .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    if (error) {
+      console.log(error)
+      return res.status(500).json({
+        error: "Failed to fetch ticket",
+        details: error.message
+      });
+    }
+
+    if (!ticket) {
+      return res.status(404).json({
+        error: "Ticket not found or unauthorized"
+      });
+    }
+
+    return res.status(200).json({
+      ticketId: ticket.id,
+      legalOwnerId: ticket.legalOwnerId,
+      priority: ticket.priority,
+      workflowStatus: ticket.workflowStatus
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
+ const getCategoriesByOrganization = async (req, res, next) => {
+  try {
+    const { organizationId } = req.params;
+
+    if (!organizationId) {
+      return res.status(400).json({
+        error: "Organization context missing"
+      });
+    }
+
+    // 1️⃣ Fetch request forms
+    const { data: forms, error: formsError } = await supabaseAdmin
+      .from("Category")
+      .select(`
+        id,
+        name,
+        assignedTeamId,
+        isActive,
+        autoReplyEnabled,
+        autoReplyMessage,
+        reviewerId,
+        created_at,
+        updated_at
+      `)
+      .eq("organization_id", organizationId)
+      .eq("isActive", true)
+      .order("created_at", { ascending: false });
+
+    if (formsError) {
+      return res.status(500).json({
+        error: "Failed to fetch categories"
+      });
+    }
+
+    if (!forms || forms.length === 0) {
+      return res.status(200).json({ Categories: [] });
+    }
+
+    // 2️⃣ Collect reviewer IDs
+    const reviewerIds = [
+      ...new Set(forms.map(f => f.reviewerId).filter(Boolean))
+    ];
+
+    const assignedTeamIds = [
+      ...new Set(forms.map(f => f.assignedTeamId).filter(Boolean))
+    ];
+
+    let reviewersMap = {};
+    let teamsMap = {};
+
+    // 3️⃣ Fetch reviewer details (Supabase user table)
+    if (reviewerIds.length > 0) {
+      const { data: reviewers, error: reviewersError } = await supabaseAdmin
+        .from("user")
+        .select("id, email, name, image")
+        .in("id", reviewerIds);
+
+    if (reviewersError) {
+        return res.status(500).json({
+          error: "Failed to fetch reviewer details"
+        });
+      }
+
+      reviewersMap = reviewers.reduce((acc, user) => {
+        acc[user.id] = {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          image: user.image ?? null
+        };
+        return acc;
+      }, {});
+    }
+
+    if (assignedTeamIds.length > 0) {
+      const { data: teams, error: teamsError } = await supabaseAdmin
+        .from("team")
+        .select("id, name")
+        .in("id", assignedTeamIds);
+
+      if (teamsError) {
+        return res.status(500).json({
+          error: "Failed to fetch team details"
+        });
+      }
+
+      teamsMap = teams.reduce((acc, team) => {
+        acc[team.id] = {
+          id: team.id,
+          name: team.name
+        };
+        return acc;
+      }, {});
+    }
+
+    // 4️⃣ Enrich forms with reviewer object
+    const enrichedForms = forms.map(form => ({
+      id: form.id,
+      name: form.name,
+      isActive: form.is_active,
+      autoReplyEnabled: form.auto_reply_enabled,
+      autoReplyMessage: form.auto_reply_message,
+      createdAt: form.created_at,
+      updatedAt: form.updated_at,
+      assignedTeamId: form.assignedTeamId,
+      assignedTeam: form.assignedTeamId
+        ? teamsMap[form.assignedTeamId] || null
+        : null,
+      reviewerId: form.reviewerId,
+      reviewer: form.reviewerId
+        ? reviewersMap[form.reviewerId] || null
+        : null
+    }));
+
+    return res.status(200).json({
+      Categories: enrichedForms
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
 
 
 export {
@@ -761,5 +1107,7 @@ export {
     updateCategoryReviewerId,
     getTicketsByReviewer,
     getAllLegalOwners,
-    reviewTicket
+    getTicketReviewDetails,
+    reviewTicket,
+    getCategoriesByOrganization
 }

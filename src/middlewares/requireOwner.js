@@ -27,7 +27,7 @@ export const requireOwner = async (req, res, next) => {
 
     const role = data.role;
 
-    if (role !== "owner") {
+    if (role !== "owner" && role !== "admin") {
       return res.status(403).json({ error: "Forbidden" });
     }
     

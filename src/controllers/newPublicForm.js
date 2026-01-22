@@ -406,7 +406,7 @@ export const updateFormReviewerId = async (req, res, next) => {
 export const submitPublicTicket = async (req, res, next) => {
   try {
     const { slug } = req.params;
-    const { name, email, description, attachments = [] } = req.body;
+    const { name, email, description, note, attachments = [] } = req.body;
 
     if (!name || !email || !description) {
       return res.status(400).json({
@@ -454,6 +454,7 @@ export const submitPublicTicket = async (req, res, next) => {
         userName: name,
         email,
         description,
+        note: note ?? null,
 
         workflowStatus: "OPEN",   // required
         reviewed: false,          // required
