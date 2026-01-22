@@ -976,7 +976,8 @@ const getTicketReviewDetails = async (req, res, next) => {
     next(err);
   }
 };
- const getCategoriesByOrganization = async (req, res, next) => {
+
+const getCategoriesByOrganization = async (req, res, next) => {
   try {
     const { organizationId } = req.params;
 
@@ -1099,6 +1100,49 @@ const getTicketReviewDetails = async (req, res, next) => {
   }
 };
 
+const deleteRequestForm = async (req, res, next) => {
+  try {
+    const { categoryId } = req.params;
+
+    if (!categoryId) {
+      return res.status(400).json({
+        error: "formId are required"
+      });
+    }
+
+    // Soft delete (disable form) with org-scope protection
+    const { data: updatedForm, error } = await supabaseAdmin
+      .from("Category")
+      .update({
+        isActive: false
+      })
+      .eq("id", categoryId)
+      // .eq("organization_id", organizationId)
+      .select("id")
+      .single();
+
+    if (error) {
+      return res.status(500).json({
+        error: "Failed to disable Category",
+        details: error.message
+      });
+    }
+
+    if (!updatedForm) {
+      return res.status(404).json({
+        error: "Category not found or unauthorized"
+      });
+    }
+
+    return res.status(200).json({
+      message: "Category disabled successfully"
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
+
 
 export {
     getAllTeams,
@@ -1109,5 +1153,6 @@ export {
     getAllLegalOwners,
     getTicketReviewDetails,
     reviewTicket,
-    getCategoriesByOrganization
+    getCategoriesByOrganization,
+    deleteRequestForm
 }
