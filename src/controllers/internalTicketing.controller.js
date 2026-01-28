@@ -3,29 +3,29 @@ import { createClient } from "@supabase/supabase-js";
 import { sendTicketConfirmationEmail } from "../lib/emails/ticketConfirmation.js";
 
 const supabaseAdmin = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 const getAllTeams = async (req, res, next) => {
-    try {
-        const { organizationId } = req.params;
+  try {
+    const { organizationId } = req.params;
 
-        const { data: teams, error } = await supabaseAdmin
-            .from("team")
-            .select("*")
-            .eq("organization_id", organizationId);
+    const { data: teams, error } = await supabaseAdmin
+      .from("team")
+      .select("*")
+      .eq("organization_id", organizationId);
 
-        const teamsData = teams.map(team => ({ id: team.id, name: team.name }));
+    const teamsData = teams.map(team => ({ id: team.id, name: team.name }));
 
-        if (error) {
-            return res.status(500).json({ error: "Failed to fetch teams" });
-        }
-
-        return res.status(200).json({ teamsData });
-    } catch (err) {
-        next(err);
+    if (error) {
+      return res.status(500).json({ error: "Failed to fetch teams" });
     }
+
+    return res.status(200).json({ teamsData });
+  } catch (err) {
+    next(err);
+  }
 };
 
 // const getAllLegalOwners = async (req, res, next) => {
@@ -51,7 +51,7 @@ const getAllTeams = async (req, res, next) => {
 //             .from("user")
 //             .select("id, name, email")
 //             .in("id", userIds);
-        
+
 
 //         if (error) {
 //             return res.status(500).json({ error: "Failed to fetch legal owners" });
@@ -657,13 +657,7 @@ const createInternalTicket = async (req, res, next) => {
 
 const getTicketsByReviewer = async (req, res, next) => {
   try {
-    const { reviewerId, organizationId } = req.params;
-
-    if (!organizationId) {
-      return res.status(400).json({
-        error: "Organization context missing"
-      });
-    }
+    const { reviewerId, pendingReview } = req.params;
 
     if (!reviewerId) {
       return res.status(400).json({
@@ -671,36 +665,43 @@ const getTicketsByReviewer = async (req, res, next) => {
       });
     }
 
-    // 1️⃣ Fetch tickets with joins
-    const { data: tickets, error } = await supabaseAdmin
+    const isPendingReview = pendingReview === "true";
+
+    let query = supabaseAdmin
       .from("Ticket")
       .select(`
-        id,
-        email,
-        priority,
-        workflowStatus,
-        legalOwnerId,
-        reviewed,
-        created_at,
-        updated_at,
-        categoryId,
-        requestFormId,
+    id,
+    email,
+    priority,
+    workflowStatus,
+    legalOwnerId,
+    reviewed,
+    created_at,
+    updated_at,
+    categoryId,
+    requestFormId,
 
-        category:categoryId (
-          id,
-          name
-        ),
+    category:categoryId (
+      id,
+      name
+    ),
 
-        requestForm:requestFormId (
-          id,
-          name,
-          slug
-        )
-      `)
-      .eq("organization_id", organizationId)
+    requestForm:requestFormId (
+      id,
+      name,
+      slug
+    )
+  `)
       .eq("reviewerId", reviewerId)
-      .eq("reviewed", false)
       .order("created_at", { ascending: false });
+
+    if (isPendingReview) {
+      query = query.eq("reviewed", false);
+    }
+
+    const { data: tickets, error } = await query;
+
+
 
     if (error) {
       return res.status(500).json({
@@ -709,7 +710,7 @@ const getTicketsByReviewer = async (req, res, next) => {
       });
     }
 
-    // 2️⃣ Shape response (same as Prisma version)
+    // Shape response (same as Prisma version)
     const response = (tickets || []).map(ticket => ({
       id: ticket.id,
       email: ticket.email,
@@ -727,17 +728,17 @@ const getTicketsByReviewer = async (req, res, next) => {
 
       category: ticket.category
         ? {
-            id: ticket.category.id,
-            name: ticket.category.name
-          }
+          id: ticket.category.id,
+          name: ticket.category.name
+        }
         : null,
 
       requestForm: ticket.requestForm
         ? {
-            id: ticket.requestForm.id,
-            name: ticket.requestForm.name,
-            slug: ticket.requestForm.slug
-          }
+          id: ticket.requestForm.id,
+          name: ticket.requestForm.name,
+          slug: ticket.requestForm.slug
+        }
         : null
     }));
 
@@ -1030,7 +1031,7 @@ const getCategoriesByOrganization = async (req, res, next) => {
         .select("id, email, name, image")
         .in("id", reviewerIds);
 
-    if (reviewersError) {
+      if (reviewersError) {
         return res.status(500).json({
           error: "Failed to fetch reviewer details"
         });
@@ -1141,14 +1142,14 @@ const deleteRequestForm = async (req, res, next) => {
 
 
 export {
-    getAllTeams,
-    createCategory,
-    createInternalTicket,
-    updateCategoryReviewerId,
-    getTicketsByReviewer,
-    getAllLegalOwners,
-    getTicketReviewDetails,
-    reviewTicket,
-    getCategoriesByOrganization,
-    deleteRequestForm
+  getAllTeams,
+  createCategory,
+  createInternalTicket,
+  updateCategoryReviewerId,
+  getTicketsByReviewer,
+  getAllLegalOwners,
+  getTicketReviewDetails,
+  reviewTicket,
+  getCategoriesByOrganization,
+  deleteRequestForm
 }
