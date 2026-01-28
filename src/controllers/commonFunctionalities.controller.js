@@ -1,6 +1,4 @@
-import prisma from "../lib/prisma.js";
 import { createClient } from "@supabase/supabase-js";
-import { sendTicketConfirmationEmail } from "../lib/emails/ticketConfirmation.js";
 
 const supabaseAdmin = createClient(
     process.env.SUPABASE_URL,
@@ -110,4 +108,88 @@ const createTicketMessage = async (req, res, next) => {
   }
 };
 
-export { createTicketMessage}
+const getTicketMessages = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+
+    if (!ticketId) {
+      return res.status(400).json({
+        error: "ticketId is required"
+      });
+    }
+
+    // Fetch ticket (to understand context)
+    const { data: ticket, error: ticketError } = await supabaseAdmin
+      .from("Ticket")
+      .select("id, email, legalOwnerId, organization_id")
+      .eq("id", ticketId)
+      .maybeSingle();
+
+    if (ticketError || !ticket) {
+      return res.status(404).json({
+        error: "Ticket not found"
+      });
+    }
+
+    // Determine viewer type
+    const isExternalViewer = !req.user;
+
+    // Fetch messages
+    const { data: messages, error } = await supabaseAdmin
+      .from("TicketMessage")
+      .select(`
+        id,
+        message,
+        attachments,
+        senderType,
+        created_at
+      `)
+      .eq("ticketId", ticketId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      return res.status(500).json({
+        error: "Failed to fetch messages",
+        details: error.message
+      });
+    }
+
+    // Compute alignment per viewer
+    const formattedMessages = messages.map(msg => {
+      let alignment;
+
+      if (isExternalViewer) {
+        // Ticket raiser view
+        alignment = msg.senderType === "EXTERNAL"
+          ? "RIGHT"
+          : "LEFT";
+      } else {
+        // Admin / Legal view
+        alignment = msg.senderType === "EXTERNAL"
+          ? "LEFT"
+          : "RIGHT";
+      }
+
+      return {
+        id: msg.id,
+        message: msg.message,
+        attachments: msg.attachments,
+        senderType: msg.senderType,
+        alignment,
+        createdAt: msg.created_at
+      };
+    });
+
+    return res.status(200).json({
+      ticketId,
+      viewerType: isExternalViewer ? "EXTERNAL" : "INTERNAL",
+      messages: formattedMessages
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+export { createTicketMessage, getTicketMessages}
