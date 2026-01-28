@@ -4,6 +4,7 @@ import cors from 'cors';
 
 import publicFormRoutes from './src/routes/publicForm.js';
 import internalTicketingRoutes from './src/routes/internalTicketing.js';
+import commonRoutes from './src/routes/commonRoute.route.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -20,6 +21,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/public', publicFormRoutes);
 app.use('/api/internal', internalTicketingRoutes)
+app.use('/api', commonRoutes)
 
 app.use('/health', (req, res) => {
   res.send('Server is running');

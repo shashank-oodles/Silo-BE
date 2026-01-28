@@ -480,7 +480,7 @@ export const submitPublicTicket = async (req, res, next) => {
         .insert({
           ticketId: ticket.id,
           senderType: "SYSTEM",
-          message: requestForm.auto_reply_message
+          message: requestForm.autoReplyMessage
         });
     }
 
@@ -515,7 +515,9 @@ export const getFormReviewers = async (req, res, next) => {
     const { data: members, error: memberError } = await supabaseAdmin
       .from("member")
       .select("user_id")
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)
+      .in("role", ["admin", "legal", "owner0"]);
+
 
     if (memberError) {
       return res.status(500).json({
@@ -713,7 +715,7 @@ export const getRequestFormsByOrganization = async (req, res, next) => {
       tags: form.tags,
       isActive: form.is_active,
       autoReplyEnabled: form.auto_reply_enabled,
-      autoReplyMessage: form.auto_reply_message,
+      autoReplyMessage: form.autoReplyMessage,
       createdAt: form.created_at,
       updatedAt: form.updated_at,
       reviewerId: form.reviewerId,
@@ -851,8 +853,8 @@ export const updateRequestForm = async (req, res, next) => {
 
     if (autoReplyEnabled !== undefined) {
       updateData.auto_reply_enabled = autoReplyEnabled;
-      updateData.auto_reply_message = autoReplyEnabled
-        ? autoReplyMessage ?? existingForm.auto_reply_message
+      updateData.autoReplyMessage = autoReplyEnabled
+        ? autoReplyMessage ?? existingForm.autoReplyMessage
         : null;
     }
 

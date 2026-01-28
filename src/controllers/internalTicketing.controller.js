@@ -508,10 +508,6 @@ const createInternalTicket = async (req, res, next) => {
       });
     }
 
-    // OPTIONAL (recommended): enforce org/team permissions
-    // if (category.organization_id !== req.organizationId) { ... }
-    // if (category.assignedTeamId !== req.teamId) { ... }
-
     // 2️⃣ Create ticket
     const { data: ticket, error: ticketError } = await supabaseAdmin
       .from("Ticket")
@@ -526,8 +522,8 @@ const createInternalTicket = async (req, res, next) => {
         reviewerId: category.reviewerId ?? null,
         note: note ?? null,
 
-        workflowStatus: "OPEN", // REQUIRED
-        reviewed: false,        // REQUIRED
+        workflowStatus: "OPEN",
+        reviewed: false,
 
         payload: {
           summary,
@@ -549,11 +545,11 @@ const createInternalTicket = async (req, res, next) => {
     // 3️⃣ Auto-reply (if configured)
     if (category.autoReplyEnabled && category.autoReplyMessage) {
       await supabaseAdmin
-        .from("ticket_message")
+        .from("TicketMessage")
         .insert({
           ticketId: ticket.id,
           senderType: "SYSTEM",
-          message: category.auto_reply_message
+          message: category.autoReplyMessage
         });
     }
 
@@ -1078,7 +1074,7 @@ const getCategoriesByOrganization = async (req, res, next) => {
       name: form.name,
       isActive: form.is_active,
       autoReplyEnabled: form.auto_reply_enabled,
-      autoReplyMessage: form.auto_reply_message,
+      autoReplyMessage: form.autoReplyMessage,
       createdAt: form.created_at,
       updatedAt: form.updated_at,
       assignedTeamId: form.assignedTeamId,
