@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { sendChatMail } from "../lib/emails/ticketChat.js";
 
 const supabaseAdmin = createClient(
     process.env.SUPABASE_URL,
@@ -65,9 +66,9 @@ const createTicketMessage = async (req, res, next) => {
       // }
 
       // Ticket creator (internal)
-      else if (req.user.email === ticket.email) {
-        senderType = "EXTERNAL";
-      }
+      // else if (req.body.email === ticket.email) {
+      //   senderType = "EXTERNAL";
+      // }
 
       else {
         return res.status(403).json({
@@ -96,6 +97,12 @@ const createTicketMessage = async (req, res, next) => {
         details: insertError.message
       });
     }
+
+    // try {if(senderType === "EXTERNAL")
+    //   await sendChatMail({ to: ticket.email, ticketId: ticket.id });
+    // } catch (error) {
+      
+    // }
 
     return res.status(201).json({
       message: "Message sent successfully",
@@ -131,7 +138,7 @@ const getTicketMessages = async (req, res, next) => {
     }
 
     // Determine viewer type
-    const isExternalViewer = !req.user;
+    // const isExternalViewer = !req.user;
 
     // Fetch messages
     const { data: messages, error } = await supabaseAdmin
@@ -155,33 +162,33 @@ const getTicketMessages = async (req, res, next) => {
 
     // Compute alignment per viewer
     const formattedMessages = messages.map(msg => {
-      let alignment;
+      // let alignment;
 
-      if (isExternalViewer) {
-        // Ticket raiser view
-        alignment = msg.senderType === "EXTERNAL"
-          ? "RIGHT"
-          : "LEFT";
-      } else {
-        // Admin / Legal view
-        alignment = msg.senderType === "EXTERNAL"
-          ? "LEFT"
-          : "RIGHT";
-      }
+      // if (isExternalViewer) {
+      //   // Ticket raiser view
+      //   alignment = msg.senderType === "EXTERNAL"
+      //     ? "RIGHT"
+      //     : "LEFT";
+      // } else {
+      //   // Admin / Legal view
+      //   alignment = msg.senderType === "EXTERNAL"
+      //     ? "LEFT"
+      //     : "RIGHT";
+      // }
 
       return {
         id: msg.id,
         message: msg.message,
         attachments: msg.attachments,
         senderType: msg.senderType,
-        alignment,
+        // alignment,
         createdAt: msg.created_at
       };
     });
 
     return res.status(200).json({
       ticketId,
-      viewerType: isExternalViewer ? "EXTERNAL" : "INTERNAL",
+      // viewerType: isExternalViewer ? "EXTERNAL" : "INTERNAL",
       messages: formattedMessages
     });
 
@@ -200,7 +207,7 @@ const getTicketDetails = async (req, res, next) => {
       });
     }
 
-    // 1️⃣ Fetch tickets
+    // Fetch tickets
     const { data: tickets, error } = await supabaseAdmin
       .from("Ticket")
       .select(`

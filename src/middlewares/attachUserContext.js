@@ -27,9 +27,22 @@ export const attachUserContext = async (req, res, next) => {
       });
     }
 
+    const {data: userData, error: userError} = await supabase
+    .from("user")
+    .select("email")
+    .eq("id", user_id)
+    .maybeSingle();
+
+    if (userError || !userData) {
+      return res.status(403).json({
+        error: "User not found"
+      });
+    }
+
     req.user = req.user || {};
     req.user.id = user_id;
-    req.user.role = member?.role;                 // admin | legal | member
+    req.user.role = member?.role;   
+    req.user.email = userData?.email;              // admin | legal | member
     req.user.organizationId = member?.organization_id;
 
     next();
