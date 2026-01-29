@@ -7,6 +7,22 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+const getAttachmentType = (key = "") => {
+  const ext = key.split(".").pop()?.toLowerCase();
+
+  if (!ext) return "UNKNOWN";
+
+  if (["png", "jpg", "jpeg", "webp"].includes(ext)) return "IMAGE";
+  if (["pdf"].includes(ext)) return "PDF";
+  if (["doc", "docx"].includes(ext)) return "DOC";
+  if (["xls", "xlsx"].includes(ext)) return "EXCEL";
+
+  return "FILE";
+};
+
+
+
+
 const getAllTeams = async (req, res, next) => {
   try {
     const { organizationId } = req.params;
@@ -477,6 +493,7 @@ const createInternalTicket = async (req, res, next) => {
       categoryId,
       summary,
       description,
+      objective,
       startDate,
       endDate,
       note,
@@ -515,6 +532,7 @@ const createInternalTicket = async (req, res, next) => {
         userName: name,
         email,
         description,
+        objective,
 
         organization_id: category.organization_id,
         categoryId,
@@ -655,6 +673,103 @@ const createInternalTicket = async (req, res, next) => {
 //     }
 // };
 
+// const getTicketsByReviewer = async (req, res, next) => {
+//   try {
+//     const { reviewerId, pendingReview } = req.params;
+
+//     if (!reviewerId) {
+//       return res.status(400).json({
+//         error: "reviewerId is required"
+//       });
+//     }
+
+//     const isPendingReview = pendingReview === "true";
+
+//     let query = supabaseAdmin
+//       .from("Ticket")
+//       .select(`
+//     id,
+//     email,
+//     priority,
+//     objective,
+//     workflowStatus,
+//     legalOwnerId,
+//     reviewed,
+//     created_at,
+//     updated_at,
+//     categoryId,
+//     requestFormId,
+
+//     category:categoryId (
+//       id,
+//       name
+//     ),
+
+//     requestForm:requestFormId (
+//       id,
+//       name,
+//       slug
+//     )
+//   `)
+//       .eq("reviewerId", reviewerId)
+//       .order("created_at", { ascending: false });
+
+//     if (isPendingReview) {
+//       query = query.eq("reviewed", false);
+//     }
+
+//     const { data: tickets, error } = await query;
+
+
+
+//     if (error) {
+//       return res.status(500).json({
+//         error: "Failed to fetch tickets",
+//         details: error.message
+//       });
+//     }
+
+//     // Shape response (same as Prisma version)
+//     const response = (tickets || []).map(ticket => ({
+//       id: ticket.id,
+//       email: ticket.email,
+
+//       priority: ticket.priority,
+//       workflowStatus: ticket.workflowStatus,
+
+//       legalOwnerId: ticket.legalOwnerId,
+
+//       createdAt: ticket.created_at,
+//       updatedAt: ticket.updated_at,
+
+//       // Source detection
+//       sourceType: ticket.categoryId ? "INTERNAL" : "EXTERNAL",
+
+//       category: ticket.category
+//         ? {
+//           id: ticket.category.id,
+//           name: ticket.category.name
+//         }
+//         : null,
+
+//       requestForm: ticket.requestForm
+//         ? {
+//           id: ticket.requestForm.id,
+//           name: ticket.requestForm.name,
+//           slug: ticket.requestForm.slug
+//         }
+//         : null
+//     }));
+
+//     return res.status(200).json({
+//       tickets: response
+//     });
+
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
 const getTicketsByReviewer = async (req, res, next) => {
   try {
     const { reviewerId, pendingReview } = req.params;
@@ -670,28 +785,30 @@ const getTicketsByReviewer = async (req, res, next) => {
     let query = supabaseAdmin
       .from("Ticket")
       .select(`
-    id,
-    email,
-    priority,
-    workflowStatus,
-    legalOwnerId,
-    reviewed,
-    created_at,
-    updated_at,
-    categoryId,
-    requestFormId,
+        id,
+        email,
+        priority,
+        objective,
+        workflowStatus,
+        legalOwnerId,
+        reviewed,
+        payload,
+        created_at,
+        updated_at,
+        categoryId,
+        requestFormId,
 
-    category:categoryId (
-      id,
-      name
-    ),
+        category:categoryId (
+          id,
+          name
+        ),
 
-    requestForm:requestFormId (
-      id,
-      name,
-      slug
-    )
-  `)
+        requestForm:requestFormId (
+          id,
+          name,
+          slug
+        )
+      `)
       .eq("reviewerId", reviewerId)
       .order("created_at", { ascending: false });
 
@@ -701,8 +818,6 @@ const getTicketsByReviewer = async (req, res, next) => {
 
     const { data: tickets, error } = await query;
 
-
-
     if (error) {
       return res.status(500).json({
         error: "Failed to fetch tickets",
@@ -710,37 +825,50 @@ const getTicketsByReviewer = async (req, res, next) => {
       });
     }
 
-    // Shape response (same as Prisma version)
-    const response = (tickets || []).map(ticket => ({
-      id: ticket.id,
-      email: ticket.email,
+    const response = (tickets || []).map(ticket => {
+      const attachments = ticket.payload?.attachments || [];
 
-      priority: ticket.priority,
-      workflowStatus: ticket.workflowStatus,
+      const enrichedAttachments = attachments.map(att => getAttachmentType(att.Key));
 
-      legalOwnerId: ticket.legalOwnerId,
+      console.log('Enriched Attachments:', enrichedAttachments);
 
-      createdAt: ticket.created_at,
-      updatedAt: ticket.updated_at,
+      return {
+        id: ticket.id,
+        email: ticket.email,
 
-      // Source detection
-      sourceType: ticket.categoryId ? "INTERNAL" : "EXTERNAL",
+        priority: ticket.priority,
+        workflowStatus: ticket.workflowStatus,
+        legalOwnerId: ticket.legalOwnerId,
 
-      category: ticket.category
-        ? {
-          id: ticket.category.id,
-          name: ticket.category.name
-        }
-        : null,
+        summary: ticket.payload?.summary ?? null,
+        startDate: ticket.payload?.startDate ?? null,
+        endDate: ticket.payload?.endDate ?? null,
 
-      requestForm: ticket.requestForm
-        ? {
-          id: ticket.requestForm.id,
-          name: ticket.requestForm.name,
-          slug: ticket.requestForm.slug
-        }
-        : null
-    }));
+        attachments: enrichedAttachments,
+
+        reviewed: ticket.reviewed,
+
+        createdAt: ticket.created_at,
+        updatedAt: ticket.updated_at,
+
+        sourceType: ticket.categoryId ? "INTERNAL" : "EXTERNAL",
+
+        category: ticket.category
+          ? {
+              id: ticket.category.id,
+              name: ticket.category.name
+            }
+          : null,
+
+        requestForm: ticket.requestForm
+          ? {
+              id: ticket.requestForm.id,
+              name: ticket.requestForm.name,
+              slug: ticket.requestForm.slug
+            }
+          : null
+      };
+    });
 
     return res.status(200).json({
       tickets: response
@@ -750,6 +878,7 @@ const getTicketsByReviewer = async (req, res, next) => {
     next(err);
   }
 };
+
 
 // const reviewTicket = async (req, res, next) => {
 //   try {

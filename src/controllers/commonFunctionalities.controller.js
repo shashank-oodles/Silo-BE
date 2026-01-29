@@ -16,7 +16,6 @@ const createTicketMessage = async (req, res, next) => {
       });
     }
 
-    // 1️⃣ Fetch ticket
     const { data: ticket, error: ticketError } = await supabaseAdmin
       .from("Ticket")
       .select(`
@@ -191,5 +190,44 @@ const getTicketMessages = async (req, res, next) => {
   }
 };
 
+const getTicketDetails = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
 
-export { createTicketMessage, getTicketMessages}
+    if (!ticketId) {
+      return res.status(400).json({
+        error: "ticketId is required"
+      });
+    }
+
+    // 1️⃣ Fetch tickets
+    const { data: tickets, error } = await supabaseAdmin
+      .from("Ticket")
+      .select(`
+        id,
+        workflowStatus,
+        priority,
+        assignedTeamId,
+        legalOwnerId,
+        payload,
+        created_at
+      `)
+      .eq("id", ticketId)
+
+    if (error) {
+      return res.status(500).json({
+        error: "Failed to fetch tickets",
+        details: error.message
+      });
+    }
+
+    return res.status(200).json({ tickets });
+
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+
+export { createTicketMessage, getTicketMessages, getTicketDetails }

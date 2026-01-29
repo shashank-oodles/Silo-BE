@@ -25,8 +25,6 @@ export const requireAuth = async (req, res, next) => {
             return res.status(401).json({ error: "Unauthorized" });
         }
 
-        console.log(data)
-
         // Attach Supabase user to request
         req.supabaseUserId = data.user_id;
 
