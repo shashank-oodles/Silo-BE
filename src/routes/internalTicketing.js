@@ -12,7 +12,8 @@ router.post('/create-category',requireAuth, requireOwner, createCategory ) //✅
 router.patch('/update-category-reviewer',requireAuth, requireOwner, updateCategoryReviewerId) //✅
 router.post('/create-internal-ticket',requireAuth, requireOwner, createInternalTicket ) //✅
 router.get('/get-all-requests/:reviewerId/:pendingReview',requireAuth, requireOwner, getTicketsByReviewer ) //✅
-router.get('/get-legal-owners',requireAuth, requireOwner,  getAllLegalOwners) //✅
+router.get('/get-legal-owners/:organizationId/:assignedTeamId',requireAuth, requireOwner,  getAllLegalOwners)
+router.get('/get-legal-owners/:organizationId',requireAuth, requireOwner,  getAllLegalOwners) //✅
 router.patch('/review-ticket/:ticketId', requireAuth, requireOwner, reviewTicket) //✅
 router.get('/review-details/:ticketId', requireAuth, requireOwner, getTicketReviewDetails)
 router.get('/get-all-categories/:organizationId', requireAuth, requireOwner, getCategoriesByOrganization) //✅

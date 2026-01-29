@@ -161,7 +161,7 @@ const getAllTeams = async (req, res, next) => {
 
 const getAllLegalOwners = async (req, res, next) => {
   try {
-    const { assignedTeamId, organizationId } = req.body;
+    const { assignedTeamId, organizationId } = req.params;
 
     if (!organizationId) {
       return res.status(400).json({
@@ -506,7 +506,7 @@ const createInternalTicket = async (req, res, next) => {
       });
     }
 
-    // 1️⃣ Fetch category
+    // Fetch category
     const { data: category, error: categoryError } = await supabaseAdmin
       .from("Category")
       .select("*")
@@ -525,7 +525,7 @@ const createInternalTicket = async (req, res, next) => {
       });
     }
 
-    // 2️⃣ Create ticket
+    // Create ticket
     const { data: ticket, error: ticketError } = await supabaseAdmin
       .from("Ticket")
       .insert({
