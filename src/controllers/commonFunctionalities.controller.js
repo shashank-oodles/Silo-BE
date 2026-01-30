@@ -2,8 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { sendChatMail } from "../lib/emails/ticketChat.js";
 
 const supabaseAdmin = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 const createTicketMessage = async (req, res, next) => {
@@ -101,7 +101,7 @@ const createTicketMessage = async (req, res, next) => {
     // try {if(senderType === "EXTERNAL")
     //   await sendChatMail({ to: ticket.email, ticketId: ticket.id });
     // } catch (error) {
-      
+
     // }
 
     return res.status(201).json({
@@ -139,6 +139,12 @@ const getTicketMessages = async (req, res, next) => {
 
     // Determine viewer type
     // const isExternalViewer = !req.user;
+    if (!req.query.user_id) {
+      if (ticket.email === req.query.email) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+    }
+
 
     // Fetch messages
     const { data: messages, error } = await supabaseAdmin
@@ -217,6 +223,7 @@ const getTicketDetails = async (req, res, next) => {
         assignedTeamId,
         legalOwnerId,
         payload,
+        description,
         created_at
       `)
       .eq("id", ticketId)
