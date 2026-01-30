@@ -140,7 +140,7 @@ const getTicketMessages = async (req, res, next) => {
     // Determine viewer type
     // const isExternalViewer = !req.user;
     if (!req.query.user_id) {
-      if (ticket.email === req.query.email) {
+      if (ticket.email !== req.query.email) {
         return res.status(403).json({ error: "Access denied" });
       }
     }
