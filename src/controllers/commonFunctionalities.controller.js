@@ -375,6 +375,138 @@ const getTicketDetails = async (req, res, next) => {
   }
 };
 
+const getTicketsByRole = async (req, res, next) => {
+  try {
+    const { id: userId, role, organizationId } = req.user;
+
+    let query = supabaseAdmin
+      .from("Ticket")
+      .select(`
+        id,
+        email,
+        priority,
+        workflowStatus,
+        legalOwnerId,
+        reviewerId,
+        reviewed,
+        payload,
+        categoryId,
+        requestFormId,
+        created_at,
+        updated_at,
+
+        category:categoryId (
+          id,
+          name
+        ),
+
+        requestForm:requestFormId (
+          id,
+          name,
+          slug
+        )
+      `)
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false });
+
+    // ADMIN / OWNER → all tickets
+    if (role === "admin" || role === "owner") {
+      // no extra filters
+    }
+
+    // LEGAL
+    else if (role === "legal") {
+      // Check if user is reviewer on ANY ticket
+      const { data: reviewerCheck, error } = await supabaseAdmin
+        .from("Ticket")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("reviewerId", userId)
+        .limit(1);
+
+      if (error) {
+        return res.status(500).json({
+          error: "Failed to verify reviewer role"
+        });
+      }
+
+      const isReviewer = reviewerCheck.length > 0;
+
+      if (!isReviewer) {
+        // Only tickets where user is legal owner
+        query = query.eq("legalOwnerId", userId);
+      }
+      // else: reviewer → see all tickets
+    }
+
+    // MEMBER
+    else if (role === "member") {
+      query = query.eq("raisedBy", userId);
+    }
+
+    // Unknown role
+    else {
+      return res.status(403).json({
+        error: "Invalid role"
+      });
+    }
+
+    const { data: tickets, error } = await query;
+
+    if (error) {
+      return res.status(500).json({
+        error: "Failed to fetch tickets",
+        details: error.message
+      });
+    }
+
+    // Shape response
+    const response = (tickets || []).map(ticket => ({
+      id: ticket.id,
+      email: ticket.email,
+
+      priority: ticket.priority,
+      workflowStatus: ticket.workflowStatus,
+      reviewed: ticket.reviewed,
+
+      legalOwnerId: ticket.legalOwnerId,
+      reviewerId: ticket.reviewerId,
+
+      summary: ticket.payload?.summary ?? null,
+      startDate: ticket.payload?.startDate ?? null,
+      endDate: ticket.payload?.endDate ?? null,
+      attachments: ticket.payload?.attachments ?? [],
+
+      sourceType: ticket.categoryId ? "INTERNAL" : "EXTERNAL",
+
+      category: ticket.category
+        ? {
+            id: ticket.category.id,
+            name: ticket.category.name
+          }
+        : null,
+
+      requestForm: ticket.requestForm
+        ? {
+            id: ticket.requestForm.id,
+            name: ticket.requestForm.name,
+            slug: ticket.requestForm.slug
+          }
+        : null,
+
+      createdAt: ticket.created_at,
+      updatedAt: ticket.updated_at
+    }));
+
+    return res.status(200).json({
+      count: response.length,
+      tickets: response
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
 
 
-export { createTicketMessage, getTicketMessages, getTicketDetails }
+export { createTicketMessage, getTicketMessages, getTicketDetails, getTicketsByRole }

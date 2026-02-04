@@ -7,41 +7,33 @@ const supabase = createClient(
 
 export const requireCommonAuth = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const userId = req.query.user_id;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "Missing or invalid token" });
+    const {data: userData, error} = await supabase
+      .from("member")
+      .select("role, organization_id, user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error || !userData) {
+      return res.status(403).json({ error: "Unauthorized access" });
     }
 
-    const token = authHeader.replace("Bearer ", "");
+    // console.log("User Data:", userData, req.query.organization_id);
 
-    const { data, error } = await supabase
-      .from("session")
-      .select(`
-        user_id,
-        user:user_id (
-          id,
-          email,
-          name
-        )
-      `)
-      .eq("token", token)
-      .single();
-
-    if (error || !data?.user) {
-      return res.status(401).json({ error: "Unauthorized" });
+    if(userData.organization_id !== req.query.organization_id){
+      return res.status(403).json({ error: "Organization mismatch" });
     }
 
-    // Attach unified user context
-    req.user = {
-      id: data.user.id,
-      email: data.user.email,
-      name: data.user.name
-    };
+    req.user ={
+      id: userData.user_id,
+      role: userData.role,
+      organizationId: userData.organization_id
+    }
 
     next();
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
 
