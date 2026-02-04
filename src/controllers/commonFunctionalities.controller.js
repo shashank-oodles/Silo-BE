@@ -1,118 +1,120 @@
 import { createClient } from "@supabase/supabase-js";
 import { sendChatMail } from "../lib/emails/ticketChat.js";
+import { resolveTicketEmailRecipients } from "../utils/resolveTicketEmailRecipients.js";
+import { sendChatBroadcastEmail } from "../lib/emails/sendChatBroadcastEmail.js";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const createTicketMessage = async (req, res, next) => {
-  try {
-    const { ticketId } = req.params;
-    const { message, attachments = [] } = req.body;
+// const createTicketMessage = async (req, res, next) => {
+//   try {
+//     const { ticketId } = req.params;
+//     const { message, attachments = [] } = req.body;
 
-    if (!ticketId || !message) {
-      return res.status(400).json({
-        error: "ticketId and message are required"
-      });
-    }
+//     if (!ticketId || !message) {
+//       return res.status(400).json({
+//         error: "ticketId and message are required"
+//       });
+//     }
 
-    const { data: ticket, error: ticketError } = await supabaseAdmin
-      .from("Ticket")
-      .select(`
-        id,
-        email,
-        legalOwnerId,
-        organization_id
-      `)
-      .eq("id", ticketId)
-      .maybeSingle();
+//     const { data: ticket, error: ticketError } = await supabaseAdmin
+//       .from("Ticket")
+//       .select(`
+//         id,
+//         email,
+//         legalOwnerId,
+//         organization_id
+//       `)
+//       .eq("id", ticketId)
+//       .maybeSingle();
 
-    if (ticketError) {
-      return res.status(500).json({ error: "Failed to fetch ticket" });
-    }
+//     if (ticketError) {
+//       return res.status(500).json({ error: "Failed to fetch ticket" });
+//     }
 
-    if (!ticket) {
-      return res.status(404).json({ error: "Ticket not found" });
-    }
+//     if (!ticket) {
+//       return res.status(404).json({ error: "Ticket not found" });
+//     }
 
-    let senderType = null;
-    let senderId = null;
+//     let senderType = null;
+//     let senderId = null;
 
-    // External user (ticket raiser)
-    if (!req.user) {
-      if (req.body.email !== ticket.email) {
-        return res.status(403).json({
-          error: "Unauthorized external sender"
-        });
-      }
+//     // External user (ticket raiser)
+//     if (!req.user) {
+//       if (req.body.email !== ticket.email) {
+//         return res.status(403).json({
+//           error: "Unauthorized external sender"
+//         });
+//       }
 
-      senderType = "EXTERNAL";
-      senderId = ticket.email;
-    }
+//       senderType = "EXTERNAL";
+//       senderId = ticket.email;
+//     }
 
-    // Logged-in user
-    if (req.user) {
-      senderId = req.user.id;
+//     // Logged-in user
+//     if (req.user) {
+//       senderId = req.user.id;
 
-      // Admin
-      if (req.user.role === "admin" || req.user.role === "owner" || req.user.role === "legal" || req.user.role === "member") {
-        senderType = req.user.role.toUpperCase();
-      }
+//       // Admin
+//       if (req.user.role === "admin" || req.user.role === "owner" || req.user.role === "legal" || req.user.role === "member") {
+//         senderType = req.user.role.toUpperCase();
+//       }
 
-      // // Legal owner
-      // else if (req.user.id === ticket.legalOwnerId) {
-      //   senderType = "LEGAL";
-      // }
+//       // // Legal owner
+//       // else if (req.user.id === ticket.legalOwnerId) {
+//       //   senderType = "LEGAL";
+//       // }
 
-      // Ticket creator (internal)
-      // else if (req.body.email === ticket.email) {
-      //   senderType = "EXTERNAL";
-      // }
+//       // Ticket creator (internal)
+//       // else if (req.body.email === ticket.email) {
+//       //   senderType = "EXTERNAL";
+//       // }
 
-      else {
-        return res.status(403).json({
-          error: "You are not allowed to message on this ticket"
-        });
-      }
-    }
+//       else {
+//         return res.status(403).json({
+//           error: "You are not allowed to message on this ticket"
+//         });
+//       }
+//     }
 
-    // 3️⃣ Insert message
-    const { data: newMessage, error: insertError } = await supabaseAdmin
-      .from("TicketMessage")
-      .insert({
-        ticketId: ticket.id,
-        senderId,
-        senderType,
-        message,
-        attachments
-      })
-      .select()
-      .single();
+//     // 3️⃣ Insert message
+//     const { data: newMessage, error: insertError } = await supabaseAdmin
+//       .from("TicketMessage")
+//       .insert({
+//         ticketId: ticket.id,
+//         senderId,
+//         senderType,
+//         message,
+//         attachments
+//       })
+//       .select()
+//       .single();
 
-    if (insertError) {
-      console.log(insertError)
-      return res.status(500).json({
-        error: "Failed to create message",
-        details: insertError.message
-      });
-    }
+//     if (insertError) {
+//       console.log(insertError)
+//       return res.status(500).json({
+//         error: "Failed to create message",
+//         details: insertError.message
+//       });
+//     }
 
-    // try {if(senderType === "EXTERNAL")
-    //   await sendChatMail({ to: ticket.email, ticketId: ticket.id });
-    // } catch (error) {
+//     // try {if(senderType === "EXTERNAL")
+//     //   await sendChatMail({ to: ticket.email, ticketId: ticket.id });
+//     // } catch (error) {
 
-    // }
+//     // }
 
-    return res.status(201).json({
-      message: "Message sent successfully",
-      data: newMessage
-    });
+//     return res.status(201).json({
+//       message: "Message sent successfully",
+//       data: newMessage
+//     });
 
-  } catch (err) {
-    next(err);
-  }
-};
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 
 // const getTicketMessages = async (req, res, next) => {
 //   try {
@@ -202,6 +204,105 @@ const createTicketMessage = async (req, res, next) => {
 //     next(err);
 //   }
 // };
+
+const createTicketMessage = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+    const { message, attachments = [] } = req.body;
+
+    if (!ticketId || !message) {
+      return res.status(400).json({
+        error: "ticketId and message are required"
+      });
+    }
+
+    const { data: ticket, error: ticketError } = await supabaseAdmin
+      .from("Ticket")
+      .select(`
+        id,
+        email,
+        legalOwnerId,
+        reviewerId,
+        organization_id
+      `)
+      .eq("id", ticketId)
+      .maybeSingle();
+
+    if (ticketError || !ticket) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+
+    let senderType;
+    let senderId = null;
+
+    // External user
+    if (!req.user) {
+      if (req.body.email !== ticket.email) {
+        return res.status(403).json({ error: "Unauthorized external sender" });
+      }
+
+      senderType = "EXTERNAL";
+    }
+
+    // Internal user
+    if (req.user) {
+      senderType = req.user.role.toUpperCase();
+      senderId = req.user.id;
+    }
+
+    // Insert message
+    const { data: newMessage, error: insertError } = await supabaseAdmin
+      .from("TicketMessage")
+      .insert({
+        ticketId: ticket.id,
+        senderId,
+        senderType,
+        message,
+        attachments
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      return res.status(500).json({
+        error: "Failed to create message",
+        details: insertError.message
+      });
+    }
+
+    // 🔔 EMAIL BROADCAST (non-blocking)
+    try {
+      const recipients = await resolveTicketEmailRecipients({
+        ticket,
+        senderUserId: req.user?.id ?? null,
+        senderEmail: req.user?.email ?? ticket.email,
+        supabaseAdmin
+      });
+
+      const senderName = req.user?.email ?? ticket.email;
+
+      for (const email of recipients) {
+        await sendChatBroadcastEmail({
+          to: email,
+          senderName,
+          ticketId: ticket.id,
+          message,
+          // ticketUrl: `${process.env.FRONTEND_BASE_URL}/tickets/${ticket.id}`
+        });
+      }
+    } catch (emailErr) {
+      console.error("Email broadcast failed:", emailErr);
+    }
+
+    return res.status(201).json({
+      message: "Message sent successfully",
+      data: newMessage
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
 
 const getTicketMessages = async (req, res, next) => {
   try {
