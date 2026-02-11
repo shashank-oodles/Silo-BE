@@ -505,10 +505,23 @@ const getTicketsByRole = async (req, res, next) => {
           id,
           name,
           slug
+        ),
+
+        legalowner:legalOwnerId (
+          id,
+          name,
+          email
+        ),
+
+        reviewer:reviewerId (
+          id,
+          name,
+          email
         )
       `)
       .eq("organization_id", organizationId)
       .order("created_at", { ascending: false });
+
 
     // ADMIN / OWNER → all tickets
     if (role === "admin" || role === "owner") {
@@ -554,6 +567,7 @@ const getTicketsByRole = async (req, res, next) => {
 
     const { data: tickets, error } = await query;
 
+
     if (error) {
       return res.status(500).json({
         error: "Failed to fetch tickets",
@@ -572,6 +586,8 @@ const getTicketsByRole = async (req, res, next) => {
 
       legalOwnerId: ticket.legalOwnerId,
       reviewerId: ticket.reviewerId,
+      legalName: ticket.legalowner?.name ?? null,
+      reviewerName: ticket.reviewer?.name ?? null,
 
       summary: ticket.payload?.summary ?? null,
       startDate: ticket.payload?.startDate ?? null,
