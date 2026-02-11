@@ -339,7 +339,7 @@ const createCategory = async (req, res, next) => {
 
 const updateCategory = async (req, res, next) => {
   try {
-    const { id } = req.params; // Category ID from route params
+    const { id } = req.params;
     const {
       name,
       assignedTeamId,

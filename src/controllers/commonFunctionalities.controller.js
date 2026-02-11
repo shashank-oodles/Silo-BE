@@ -542,7 +542,7 @@ const getTicketsByRole = async (req, res, next) => {
 
     // MEMBER
     else if (role === "member") {
-      query = query.eq("raisedBy", userId);
+      query = query.eq("email", req.user.email);
     }
 
     // Unknown role
