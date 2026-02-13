@@ -5,14 +5,15 @@ import cors from 'cors';
 import publicFormRoutes from './src/routes/publicForm.js';
 import internalTicketingRoutes from './src/routes/internalTicketing.js';
 import commonRoutes from './src/routes/commonRoute.route.js';
+import chatRoutes from './src/routes/chatRoutes.route.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const ALTERNATIVE_PORT = 5001; 
+const ALTERNATIVE_PORT = 5001;
 
 // CORS configuration
 app.use(cors({
-  origin: '*', 
+  origin: '*',
 }));
 
 app.use(express.json());
@@ -21,7 +22,9 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/public', publicFormRoutes);
 app.use('/api/internal', internalTicketingRoutes)
+app.use('/api/ai', chatRoutes)
 app.use('/api', commonRoutes)
+
 
 app.use('/health', (req, res) => {
   res.send('Server is running');

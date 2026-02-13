@@ -1,0 +1,13 @@
+// routes/chatRoutes.js
+import express from 'express';
+import { createChat, getChatHistory, sendMessage, updateChatContext } from '../controllers/chatController.controller.js';
+import { authenticate } from '../middlewares/aiAuth.js';
+
+const router = express.Router();
+
+router.post('/chats', authenticate, createChat);
+router.get('/chats/:chat_id', authenticate, getChatHistory);
+router.post('/chats/:chat_id/messages', authenticate, sendMessage);
+router.put('/chats/:chat_id/context', authenticate, updateChatContext);
+
+export default router;
