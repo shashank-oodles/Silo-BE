@@ -46,7 +46,7 @@ export const inferContextWithAI = async (message, currentContext) => {
     Example format (return exactly like this):
     {
       "legalTopic": "contracts",
-      "jurisdiction": "India",
+      "jurisdiction": "Spain",
       "documentType": "NDA",
       "specificClauses": ["confidentiality"]
     }
