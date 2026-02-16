@@ -1,5 +1,6 @@
 // controllers/chatController.js
 import geminiService from '../utils/geminiService.js';
+import fileService from '../utils/fileService.js';
 import { inferContextWithAI } from '../utils/contextUtils.js';
 import { createClient } from "@supabase/supabase-js";
 
@@ -215,11 +216,91 @@ export const getChatHistory = async (req, res) => {
 //   }
 // };
 
+    // export const sendMessage = async (req, res) => {
+    // try {
+    //     const { chat_id } = req.params;
+    //     const { content } = req.body;
+    //     const { user_id } = req.user;
+
+    //     // Get chat context and messages
+    //     const { data: chat, error: chatError } = await supabase
+    //     .from('aichats')
+    //     .select('context')
+    //     .eq('id', chat_id)
+    //     .single();
+
+    //     if (chatError) throw chatError;
+
+    //     const { data: messages, error: messagesError } = await supabase
+    //     .from('aimessages')
+    //     .select('content, is_user')
+    //     .eq('chat_id', chat_id)
+    //     .order('created_at', { ascending: true });
+
+    //     if (messagesError) throw messagesError;
+
+    //     // Insert user message
+    //     const { data: userMessage, error: insertError } = await supabase
+    //     .from('aimessages')
+    //     .insert({
+    //         chat_id,
+    //         content,
+    //         is_user: true
+    //     })
+    //     .select()
+    //     .single();
+
+    //     if (insertError) throw insertError;
+
+    //     // Dynamically update context based on user input
+    //     const updatedContext = await inferContextWithAI(
+    //     content,
+    //     chat.context
+    //     );
+
+    //     // Update chat context
+    //     await supabase
+    //     .from('aichats')
+    //     .update({
+    //         context: updatedContext
+    //     })
+    //     .eq('id', chat_id);
+
+    //     // Generate AI response with updated context
+    //     const { response, usage } = await geminiService.generateResponse(
+    //     [...messages, userMessage],
+    //     updatedContext
+    //     );
+
+    //     // Insert AI response
+    //     const { data: aiMessage, error: aiInsertError } = await supabase
+    //     .from('aimessages')
+    //     .insert({
+    //         chat_id,
+    //         content: response,
+    //         is_user: false,
+    //         metadata: {
+    //         usage,
+    //         generated_at: new Date().toISOString()
+    //         }
+    //     })
+    //     .select()
+    //     .single();
+
+    //     if (aiInsertError) throw aiInsertError;
+
+    //     res.json(aiMessage);
+    // } catch (error) {
+    //     res.status(500).json({ error: error.message });
+    // }
+    // };
+
 export const sendMessage = async (req, res) => {
   try {
     const { chat_id } = req.params;
     const { content } = req.body;
-    const { user_id } = req.user;
+    const user_id = req.user;
+    const files = req.files || [];
 
     // Get chat context and messages
     const { data: chat, error: chatError } = await supabase
@@ -232,43 +313,56 @@ export const sendMessage = async (req, res) => {
 
     const { data: messages, error: messagesError } = await supabase
       .from('aimessages')
-      .select('content, is_user')
+      .select('content, is_user, attachments')
       .eq('chat_id', chat_id)
       .order('created_at', { ascending: true });
 
     if (messagesError) throw messagesError;
 
-    // Insert user message
+    // Upload files to Supabase Storage
+    const uploadedAttachments = [];
+    for (const file of files) {
+      const fileData = await fileService.uploadFile(file, user_id, chat_id);
+      uploadedAttachments.push({
+        type: fileService.getFileType(file.mimetype),
+        url: fileData.url,
+        path: fileData.path,
+        mimeType: fileData.mimeType,
+        fileName: fileData.fileName,
+        size: fileData.size
+      });
+    }
+
+    // Insert user message with attachments
     const { data: userMessage, error: insertError } = await supabase
       .from('aimessages')
       .insert({
         chat_id,
-        content,
-        is_user: true
+        content: content || 'Sent an attachment',
+        is_user: true,
+        attachments: uploadedAttachments
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (insertError) throw insertError;
 
-    // Dynamically update context based on user input
+    // Dynamically update context
     const updatedContext = await inferContextWithAI(
-      content,
+      content || 'User sent attachments',
       chat.context
     );
 
-    // Update chat context
     await supabase
       .from('aichats')
-      .update({
-        context: updatedContext
-      })
+      .update({ context: updatedContext })
       .eq('id', chat_id);
 
-    // Generate AI response with updated context
+    // Generate AI response with attachments
     const { response, usage } = await geminiService.generateResponse(
       [...messages, userMessage],
-      updatedContext
+      updatedContext,
+      uploadedAttachments
     );
 
     // Insert AI response
@@ -280,42 +374,46 @@ export const sendMessage = async (req, res) => {
         is_user: false,
         metadata: {
           usage,
-          generated_at: new Date().toISOString()
+          generated_at: new Date().toISOString(),
+          processedAttachments: uploadedAttachments.length
         }
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (aiInsertError) throw aiInsertError;
 
-    res.json(aiMessage);
+    res.json({
+      message: aiMessage,
+      attachments: uploadedAttachments
+    });
   } catch (error) {
+    console.error('Send message error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
-
 export const updateChatContext = async (req, res) => {
-  try {
-    const { chat_id } = req.params;
-    const { context } = req.body;
+    try {
+        const { chat_id } = req.params;
+        const { context } = req.body;
 
-    const { data, error } = await supabase
-      .from('aichats')
-      .update({
-        context: {
-          ...context,
-          updated_at: new Date().toISOString()
-        }
-      })
-      .eq('id', chat_id)
-      .select()
-      .single();
+        const { data, error } = await supabase
+        .from('aichats')
+        .update({
+            context: {
+            ...context,
+            updated_at: new Date().toISOString()
+            }
+        })
+        .eq('id', chat_id)
+        .select()
+        .single();
 
-    if (error) throw error;
+        if (error) throw error;
 
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 };
