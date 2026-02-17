@@ -26,8 +26,35 @@ export const authenticate = async (req, res, next) => {
             return res.status(401).json({ error: "Unauthorized" });
         }
 
-        // Attach Supabase user to request
-        req.user = data.user_id;
+        const { data: userData, error: userError } = await supabase
+            .from("user")
+            .select("email, name")
+            .eq("id", data.user_id)
+            .maybeSingle();
+
+        if (userError || !userData) {
+            return res.status(403).json({
+                error: "User not found"
+            });
+        }
+
+        const { data: member, error: memberError } = await supabase
+            .from("member")
+            .select("organization_id, user_id, role")
+            .eq("user_id", data.user_id)
+            .maybeSingle();
+
+        if (memberError || !member) {
+            return res.status(403).json({ error: "User not found" });
+        }
+
+        req.user = {
+            id: data.user_id,
+            email: userData.email,
+            name: userData.name,
+            organizationId: member.organization_id,
+            role: member.role
+        }
 
         next();
     } catch (err) {

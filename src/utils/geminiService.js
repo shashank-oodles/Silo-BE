@@ -38,7 +38,7 @@
 // //       `;
 
 // //       const result = await chat.sendMessage(prompt);
-      
+
 // //       return {
 // //         response: result.response.text(),
 // //         usage: {
@@ -82,7 +82,8 @@ class GeminiService {
       3. Cite relevant legal principles when possible
       4. Be concise and professional
       5. When analyzing documents, images, or audio, focus on legal implications
-      6. When unsure, say "I need more context to provide an accurate legal response"
+      6. When unsure, say "I need more context to provide an accurate legal response",
+      7. Always answer for those questions without legal interfrence, which is already provided in the context, for example upon asking my organizationId, name and email you can asnwer because it has already been provided in context.
     `;
   }
 
@@ -197,6 +198,42 @@ class GeminiService {
     } catch (error) {
       console.error("Gemini API error:", error);
       throw new Error(`Failed to generate AI response: ${error.message}`);
+    }
+  }
+
+  // utils/geminiService.js - add this method inside the GeminiService class
+
+  async detectIntent(userMessage) {
+    try {
+      const prompt = `
+      Analyze this user message and determine their intent.
+      
+      User message: "${userMessage}"
+      
+      Possible intents:
+      - CREATE_REQUEST_FORM: User wants to create a request form or external ticket form
+      - CREATE_CATEGORY: User wants to create a category for internal tickets
+      - CREATE_INTERNAL_TICKET: User wants to create/raise an internal ticket or request
+      - GENERAL: General legal question or any other conversation
+      
+      Respond with ONLY a valid JSON object, no markdown, no backticks, no extra text:
+      {"intent": "GENERAL", "confidence": 0.9}
+    `;
+
+      const result = await this.model.generateContent(prompt);
+      const text = result.response.text().trim();
+
+      // Strip any markdown backticks if Gemini adds them
+      const cleanJson = text.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
+
+      console.log('Detected intent:', parsed);
+      return parsed;
+
+    } catch (error) {
+      console.error('Intent detection error:', error);
+      // Default to GENERAL so conversation still works on failure
+      return { intent: 'GENERAL', confidence: 0 };
     }
   }
 

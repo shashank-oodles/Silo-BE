@@ -3,6 +3,7 @@ import geminiService from '../utils/geminiService.js';
 import fileService from '../utils/fileService.js';
 import { inferContextWithAI } from '../utils/contextUtils.js';
 import { createClient } from "@supabase/supabase-js";
+import { handleAgentMessage } from '../utils/agentHandler.js';
 
 const supabase = createClient(
     process.env.SUPABASE_URL,
@@ -48,8 +49,16 @@ const supabase = createClient(
 
 export const createChat = async (req, res) => {
   try {
-    const user_id = req.user; // Ensure you're accessing the user ID correctly
+    const user_id = req.user.id; // Ensure you're accessing the user ID correctly
     const { title, initialMessage, context } = req.body;
+
+    const userContext = {
+      userId: req.user.id,
+      organizationId: req.user.organizationId,
+      email: req.user.email,
+      name: req.user.name,
+      role: req.user.role
+    };
 
     // Create chat record
     const { data: chat, error: chatError } = await supabase
@@ -80,6 +89,8 @@ export const createChat = async (req, res) => {
         .single();
 
       if (insertError) throw insertError;
+
+      chat.context = { ...chat.context, ...userContext };
 
       // Generate AI response
       const { response, usage } = await geminiService.generateResponse(
@@ -295,14 +306,264 @@ export const getChatHistory = async (req, res) => {
     // }
     // };
 
+// export const sendMessage = async (req, res) => {
+//   try {
+//     const { chat_id } = req.params;
+//     const { content } = req.body;
+//     const user_id = req.user.id;
+//     const files = req.files || [];
+
+//     const userContext = {
+//       userId: req.user.id,
+//       organizationId: req.user.organizationId,
+//       email: req.user.email,
+//       name: req.user.name
+//     };
+
+//     // Get chat context and messages
+//     const { data: chat, error: chatError } = await supabase
+//       .from('aichats')
+//       .select('context')
+//       .eq('id', chat_id)
+//       .single();
+
+//     if (chatError) throw chatError;
+
+//     const { data: messages, error: messagesError } = await supabase
+//       .from('aimessages')
+//       .select('content, is_user, attachments')
+//       .eq('chat_id', chat_id)
+//       .order('created_at', { ascending: true });
+
+//     if (messagesError) throw messagesError;
+
+//     // Upload files to Supabase Storage
+//     const uploadedAttachments = [];
+//     for (const file of files) {
+//       const fileData = await fileService.uploadFile(file, user_id, chat_id);
+//       uploadedAttachments.push({
+//         type: fileService.getFileType(file.mimetype),
+//         url: fileData.url,
+//         path: fileData.path,
+//         mimeType: fileData.mimeType,
+//         fileName: fileData.fileName,
+//         size: fileData.size
+//       });
+//     }
+
+//     // Insert user message with attachments
+//     const { data: userMessage, error: insertError } = await supabase
+//       .from('aimessages')
+//       .insert({
+//         chat_id,
+//         content: content || 'Sent an attachment',
+//         is_user: true,
+//         attachments: uploadedAttachments
+//       })
+//       .select()
+//       .maybeSingle();
+
+//     if (insertError) throw insertError;
+
+//     chat.context = { ...chat.context, ...userContext };
+
+//     // Dynamically update context
+//     const updatedContext = await inferContextWithAI(
+//       content || 'User sent attachments',
+//       chat.context
+//     );
+
+//     await supabase
+//       .from('aichats')
+//       .update({ context: updatedContext })
+//       .eq('id', chat_id);
+
+//     // Generate AI response with attachments
+//     const { response, usage } = await geminiService.generateResponse(
+//       [...messages, userMessage],
+//       updatedContext,
+//       uploadedAttachments
+//     );
+
+//     // Insert AI response
+//     const { data: aiMessage, error: aiInsertError } = await supabase
+//       .from('aimessages')
+//       .insert({
+//         chat_id,
+//         content: response,
+//         is_user: false,
+//         metadata: {
+//           usage,
+//           generated_at: new Date().toISOString(),
+//           processedAttachments: uploadedAttachments.length
+//         }
+//       })
+//       .select()
+//       .maybeSingle();
+
+//     if (aiInsertError) throw aiInsertError;
+
+//     res.json({
+//       message: aiMessage,
+//       attachments: uploadedAttachments
+//     });
+//   } catch (error) {
+//     console.error('Send message error:', error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// export const sendMessage = async (req, res) => {
+//   try {
+//     const { chat_id } = req.params;
+//     const { content } = req.body;
+//     const user_id = req.user.id;
+//     const files = req.files || [];
+//     const authToken = req.headers.authorization?.replace('Bearer ', '');
+
+//     // ✅ Already fully populated from your auth middleware
+//     const userContext = {
+//       userId: req.user.id,
+//       organizationId: req.user.organizationId,
+//       email: req.user.email,
+//       name: req.user.name,
+//       role: req.user.role
+//     };
+
+//     // Get chat context
+//     const { data: chat, error: chatError } = await supabase
+//       .from('aichats')
+//       .select('context')
+//       .eq('id', chat_id)
+//       .single();
+
+//     if (chatError) throw chatError;
+
+//     // Get message history
+//     const { data: messages, error: messagesError } = await supabase
+//       .from('aimessages')
+//       .select('content, is_user, attachments')
+//       .eq('chat_id', chat_id)
+//       .order('created_at', { ascending: true });
+
+//     if (messagesError) throw messagesError;
+
+//     // Upload files if any
+//     const uploadedAttachments = [];
+//     for (const file of files) {
+//       const fileData = await fileService.uploadFile(file, user_id, chat_id);
+//       uploadedAttachments.push({
+//         type: fileService.getFileType(file.mimetype),
+//         url: fileData.url,
+//         path: fileData.path,
+//         mimeType: fileData.mimeType,
+//         fileName: fileData.fileName,
+//         size: fileData.size
+//       });
+//     }
+
+//     // Save user message
+//     const { data: userMessage, error: insertError } = await supabase
+//       .from('aimessages')
+//       .insert({
+//         chat_id,
+//         content: content || 'Sent an attachment',
+//         is_user: true,
+//         attachments: uploadedAttachments
+//       })
+//       .select()
+//       .maybeSingle();
+
+//     if (insertError) throw insertError;
+
+//     // Merge userContext into chat context
+//     chat.context = { ...chat.context, ...userContext };
+
+//     // Update context with AI inference
+//     const updatedContext = await inferContextWithAI(
+//       content || 'User sent attachments',
+//       chat.context
+//     );
+
+//     await supabase
+//       .from('aichats')
+//       .update({ context: updatedContext })
+//       .eq('id', chat_id);
+
+//     let aiResponseContent;
+//     let usage = null;
+
+//     // ✅ Check if message has attachments - skip agent, go directly to Gemini
+//     if (uploadedAttachments.length > 0) {
+//       const result = await geminiService.generateResponse(
+//         [...messages, userMessage],
+//         updatedContext,
+//         uploadedAttachments
+//       );
+//       aiResponseContent = result.response;
+//       usage = result.usage;
+
+//     } else {
+//       // ✅ Route through agent handler for intent detection + action execution
+//       const agentResult = await handleAgentMessage(
+//         chat_id,
+//         content,
+//         [...messages, userMessage],
+//         updatedContext,
+//         authToken,
+//         userContext
+//       );
+
+//       aiResponseContent = agentResult.response;
+//       usage = agentResult.usage || null;
+//     }
+
+//     // Save AI response
+//     const { data: aiMessage, error: aiInsertError } = await supabase
+//       .from('aimessages')
+//       .insert({
+//         chat_id,
+//         content: aiResponseContent,
+//         is_user: false,
+//         metadata: {
+//           usage,
+//           generated_at: new Date().toISOString(),
+//           processedAttachments: uploadedAttachments.length
+//         }
+//       })
+//       .select()
+//       .maybeSingle();
+
+//     if (aiInsertError) throw aiInsertError;
+
+//     res.json({
+//       message: aiMessage,
+//       attachments: uploadedAttachments
+//     });
+
+//   } catch (error) {
+//     console.error('Send message error:', error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// controllers/chatController.controller.js
+
 export const sendMessage = async (req, res) => {
   try {
     const { chat_id } = req.params;
     const { content } = req.body;
-    const user_id = req.user;
+    const user_id = req.user.id;
     const files = req.files || [];
 
-    // Get chat context and messages
+    const userContext = {
+      userId: req.user.id,
+      organizationId: req.user.organizationId,
+      email: req.user.email,
+      name: req.user.name,
+      role: req.user.role
+    };
+
     const { data: chat, error: chatError } = await supabase
       .from('aichats')
       .select('context')
@@ -319,7 +580,6 @@ export const sendMessage = async (req, res) => {
 
     if (messagesError) throw messagesError;
 
-    // Upload files to Supabase Storage
     const uploadedAttachments = [];
     for (const file of files) {
       const fileData = await fileService.uploadFile(file, user_id, chat_id);
@@ -333,7 +593,6 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // Insert user message with attachments
     const { data: userMessage, error: insertError } = await supabase
       .from('aimessages')
       .insert({
@@ -347,30 +606,56 @@ export const sendMessage = async (req, res) => {
 
     if (insertError) throw insertError;
 
-    // Dynamically update context
+    // ✅ Preserve agentSession before inferContextWithAI overwrites it
+    const existingAgentSession = chat.context?.agentSession || null;
+
+    // console.log("Existing agent session before context update:", existingAgentSession);
+
+    chat.context = { ...chat.context, ...userContext };
+
     const updatedContext = await inferContextWithAI(
       content || 'User sent attachments',
       chat.context
     );
+
+    // ✅ Re-inject agentSession back after inferContextWithAI
+    if (existingAgentSession) {
+      updatedContext.agentSession = existingAgentSession;
+    }
 
     await supabase
       .from('aichats')
       .update({ context: updatedContext })
       .eq('id', chat_id);
 
-    // Generate AI response with attachments
-    const { response, usage } = await geminiService.generateResponse(
-      [...messages, userMessage],
-      updatedContext,
-      uploadedAttachments
-    );
+    let aiResponseContent;
+    let usage = null;
 
-    // Insert AI response
+    if (uploadedAttachments.length > 0) {
+      const result = await geminiService.generateResponse(
+        [...messages, userMessage],
+        updatedContext,
+        uploadedAttachments
+      );
+      aiResponseContent = result.response;
+      usage = result.usage;
+    } else {
+      const agentResult = await handleAgentMessage(
+        chat_id,
+        content,
+        [...messages, userMessage],
+        updatedContext,
+        userContext
+      );
+      aiResponseContent = agentResult.response;
+      usage = agentResult.usage || null;
+    }
+
     const { data: aiMessage, error: aiInsertError } = await supabase
       .from('aimessages')
       .insert({
         chat_id,
-        content: response,
+        content: aiResponseContent,
         is_user: false,
         metadata: {
           usage,
@@ -387,11 +672,27 @@ export const sendMessage = async (req, res) => {
       message: aiMessage,
       attachments: uploadedAttachments
     });
+
   } catch (error) {
     console.error('Send message error:', error);
     res.status(500).json({ error: error.message });
   }
 };
+// ```
+
+// ---
+
+// ## What Changed & Why
+// ```
+// BEFORE:
+// sendMessage → geminiService.generateResponse() always
+
+// AFTER:
+// sendMessage
+//   ├── Has attachments? → geminiService directly (Gemini handles files)
+//   └── Text only?       → handleAgentMessage()
+//                             ├── Intent = action?  → collect fields → execute API
+//                             └── Intent = GENERAL? → geminiService normally
 
 export const updateChatContext = async (req, res) => {
     try {
