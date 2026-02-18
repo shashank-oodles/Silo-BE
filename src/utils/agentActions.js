@@ -165,13 +165,13 @@ export const AGENT_ACTIONS = {
     requiredFields: [
       // ⚪ OPTIONAL
       {
-        key: "Title",
-        label: "title",
+        key: "Summary",
+        label: "summary",
         question: "Provide a brief title",
         required: false,
         auto: false
       },
-      
+
       // 🔍 RESOLVED - special type, handled before normal flow
       {
         key: "categoryId",
