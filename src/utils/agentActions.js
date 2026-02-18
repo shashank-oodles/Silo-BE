@@ -163,6 +163,15 @@ export const AGENT_ACTIONS = {
   CREATE_INTERNAL_TICKET: {
     intent: "CREATE_INTERNAL_TICKET",
     requiredFields: [
+      // ⚪ OPTIONAL
+      {
+        key: "Title",
+        label: "title",
+        question: "Provide a brief title",
+        required: false,
+        auto: false
+      },
+      
       // 🔍 RESOLVED - special type, handled before normal flow
       {
         key: "categoryId",
@@ -182,21 +191,13 @@ export const AGENT_ACTIONS = {
         validate: (v) => v.trim().length >= 10 || "Description must be at least 10 characters."
       },
 
-      // ⚪ OPTIONAL
       // {
-      //   key: "summary",
-      //   label: "Summary",
-      //   question: "Provide a brief summary?",
+      //   key: "objective",
+      //   label: "Objective",
+      //   question: "What is the objective or expected outcome?",
       //   required: false,
       //   auto: false
       // },
-      {
-        key: "objective",
-        label: "Objective",
-        question: "What is the objective or expected outcome?",
-        required: false,
-        auto: false
-      },
       // {
       //   key: "startDate",
       //   label: "Start Date",

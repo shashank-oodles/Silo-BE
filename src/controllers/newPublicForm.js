@@ -459,6 +459,7 @@ export const submitPublicTicket = async (req, res, next) => {
 
         workflowStatus: "OPEN",   // required
         reviewed: false,          // required
+        createdBy: req.supabaseUserId,
 
         payload: {
           attachments

@@ -665,6 +665,7 @@ const createInternalTicket = async (req, res, next) => {
 
         workflowStatus: "OPEN",
         reviewed: false,
+        createdBy: req.supabaseUserId,
 
         payload: {
           summary,

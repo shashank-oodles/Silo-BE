@@ -196,7 +196,7 @@ export const createInternalTicketService = async (collectedFields) => {
       name,         // auto-populated from userContext.name
       email,        // auto-populated from userContext.email
       categoryId,   // resolved from category selection
-      // summary,
+      summary,
       description,
       objective,
       // startDate,
@@ -243,7 +243,7 @@ export const createInternalTicketService = async (collectedFields) => {
         reviewed: false,
 
         payload: {
-          // summary: summary || null,
+          summary: summary || null,
           // startDate: startDate || null,
           // endDate: endDate || null,
           attachments
