@@ -24,7 +24,12 @@ const getRoleErrorMessage = (intent, role) => {
     return `🚫 **Access Denied**\n\nYou don't have permission to ${actionName}.\n\n- **Your role:** ${role || 'unknown'}\n- **Required roles:** ${allowedRoles}\n\nPlease contact your administrator if you need access.`;
 };
 
-const isEmpty = (value) => !value || value.trim() === '';
+// const isEmpty = (value) => !value || value.trim() === '';
+const isEmpty = (value) => {
+    if (!value || value.trim() === '') return true;
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'skip' || normalized === 'none' || normalized === 'n/a' || normalized === 'null' || normalized === 'NA';
+};
 
 const normalizeBoolean = (value) => {
     const v = value?.toLowerCase().trim();

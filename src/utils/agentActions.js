@@ -165,9 +165,9 @@ export const AGENT_ACTIONS = {
     requiredFields: [
       // ⚪ OPTIONAL
       {
-        key: "Summary",
-        label: "summary",
-        question: "Provide a brief title",
+        key: "summary",
+        label: "Summary",
+        question: "Provide a title",
         required: false,
         auto: false
       },
@@ -242,6 +242,13 @@ export const AGENT_ACTIONS = {
         required: true,
         auto: true,
         autoFrom: "email"
+      },
+      {
+        key: "createdBy",
+        label: "Created By",
+        required: true,
+        auto: true,
+        autoFrom: "userId"
       }
     ],
 

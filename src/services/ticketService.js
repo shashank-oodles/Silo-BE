@@ -195,6 +195,7 @@ export const createInternalTicketService = async (collectedFields) => {
     const {
       name,         // auto-populated from userContext.name
       email,        // auto-populated from userContext.email
+      createdBy,    // auto-populated from userContext.userId
       categoryId,   // resolved from category selection
       summary,
       description,
@@ -241,6 +242,8 @@ export const createInternalTicketService = async (collectedFields) => {
 
         workflowStatus: "OPEN",
         reviewed: false,
+
+        createdBy,
 
         payload: {
           summary: summary || null,
