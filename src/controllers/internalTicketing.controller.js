@@ -1350,13 +1350,13 @@ const getCategoriesByOrganization = async (req, res, next) => {
   }
 };
 
-const deleteRequestForm = async (req, res, next) => {
+const deleteCategory = async (req, res, next) => {
   try {
     const { categoryId } = req.params;
 
     if (!categoryId) {
       return res.status(400).json({
-        error: "formId are required"
+        error: "categoryId is required"
       });
     }
 
@@ -1405,5 +1405,5 @@ export {
   getTicketReviewDetails,
   reviewTicket,
   getCategoriesByOrganization,
-  deleteRequestForm
+  deleteCategory
 }

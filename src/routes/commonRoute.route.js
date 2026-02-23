@@ -2,7 +2,7 @@ import express from "express";
 
 import { requireCommonAuth } from "../middlewares/requireCommonAuth.js";
 import { attachUserContext, getAttachUserContext } from "../middlewares/attachUserContext.js";
-import { createTicketMessage, getTicketMessages, getTicketDetails, getTicketsByRole, getTicketStatus } from "../controllers/commonFunctionalities.controller.js";
+import { createTicketMessage, getTicketMessages, getTicketDetails, getTicketsForReview, getTicketStatus } from "../controllers/commonFunctionalities.controller.js";
 
 const router = express.Router();
 
@@ -13,6 +13,6 @@ router.get('/ticket-message/:ticketId', getAttachUserContext, getTicketMessages)
 router.get('/tickets/:ticket_id', getTicketStatus)
 
 router.get('/get-ticket-detail/:ticketId', getTicketDetails)
-router.get('/get-all-tickets', requireCommonAuth, getTicketsByRole)
+router.get('/get-all-tickets-review', requireCommonAuth, getTicketsForReview)
 
 export default router;

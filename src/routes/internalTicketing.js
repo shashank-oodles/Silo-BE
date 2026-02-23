@@ -1,7 +1,7 @@
 import express from "express";
 import { requireAuth } from "../middlewares/requireAuth.js";
 import { requireOwner } from "../middlewares/requireOwner.js";
-import { createCategory, createInternalTicket, updateCategoryReviewerId, getTicketsByReviewer, getAllTeams, getAllLegalOwners, reviewTicket, getTicketReviewDetails, getCategoriesByOrganization, deleteRequestForm, updateCategory } from "../controllers/internalTicketing.controller.js";
+import { createCategory, createInternalTicket, updateCategoryReviewerId, getTicketsByReviewer, getAllTeams, getAllLegalOwners, reviewTicket, getTicketReviewDetails, getCategoriesByOrganization, deleteCategory, updateCategory } from "../controllers/internalTicketing.controller.js";
 import { getFormReviewers } from "../controllers/newPublicForm.js";
 
 const router = express.Router();
@@ -19,8 +19,8 @@ router.get('/get-legal-owners/:organizationId',requireAuth, requireOwner,  getAl
 
 router.patch('/review-ticket/:ticketId', requireAuth, requireOwner, reviewTicket) //✅
 router.get('/review-details/:ticketId', requireAuth, requireOwner, getTicketReviewDetails)
-router.get('/get-all-categories/:organizationId', requireAuth, requireOwner, getCategoriesByOrganization) //✅
-router.delete('/delete-category/:categoryId', requireAuth, requireOwner, deleteRequestForm)
+router.get('/get-all-categories/:organizationId', requireAuth, getCategoriesByOrganization) //✅
+router.delete('/delete-category/:categoryId', requireAuth, requireOwner, deleteCategory)
 
 // router.get('/get-all-internal-tickets', )
 

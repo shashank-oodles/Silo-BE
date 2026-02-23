@@ -515,7 +515,7 @@ const getTicketStatus = async (req, res, next) => {
   }
 }
 
-  const getTicketsByRole = async (req, res, next) => {
+  const getTicketsForReview = async (req, res, next) => {
     try {
       const { id: userId, role, organizationId } = req.user;
 
@@ -571,24 +571,25 @@ const getTicketStatus = async (req, res, next) => {
       else if (role === "legal") {
         // Check if user is reviewer on ANY ticket
         const { data: reviewerCheck, error } = await supabaseAdmin
-          .from("Ticket")
-          .select("id")
-          .eq("organization_id", organizationId)
-          .eq("reviewerId", userId)
-          .limit(1);
+        //   .from("Ticket")
+        //   .select("id")
+        //   .eq("organization_id", organizationId)
+        //   .eq("reviewerId", userId)
+        //   .limit(1);
 
-        if (error) {
-          return res.status(500).json({
-            error: "Failed to verify reviewer role"
-          });
-        }
+        // if (error) {
+        //   return res.status(500).json({
+        //     error: "Failed to verify reviewer role"
+        //   });
+        // }
 
-        const isReviewer = reviewerCheck.length > 0;
+        // const isReviewer = reviewerCheck.length > 0;
 
-        if (!isReviewer) {
-          // Only tickets where user is legal owner
-          query = query.eq("legalOwnerId", userId);
-        }
+        // if (!isReviewer) {
+        //   // Only tickets where user is legal owner
+        //   query = query.eq("legalOwnerId", userId);
+        // }
+        query = query.eq("reviewerId", userId)
         // else: reviewer → see all tickets
       }
 
@@ -665,4 +666,4 @@ const getTicketStatus = async (req, res, next) => {
   };
 
 
-  export { createTicketMessage, getTicketMessages, getTicketDetails, getTicketsByRole, getTicketStatus };
+  export { createTicketMessage, getTicketMessages, getTicketDetails, getTicketsForReview, getTicketStatus };
