@@ -1,62 +1,3 @@
-// // // services/geminiService.js
-// // import 'dotenv/config';
-// // import { GoogleGenerativeAI } from "@google/generative-ai";
-
-
-// // class GeminiService {
-// //   constructor( apiKey) {
-// //     this.genAI = new GoogleGenerativeAI( apiKey);
-// //     this.model = this.genAI.getGenerativeModel({ model: "gemma-3-4b-it" });
-// //     this.legalContext = `
-// //       You are Silo Agent, a legal-focused AI assistant.
-// //       Your responses must:
-// //       1. Be strictly related to legal matters
-// //       2. Avoid giving medical, financial, or general advice
-// //       3. Cite relevant legal principles when possible
-// //       4. Be concise and professional
-// //       5. When unsure, say "I need more context to provide an accurate legal response"
-// //     `;
-// //   }
-
-// //   async generateResponse(messages, context = {}) {
-// //     try {
-// //       const chat = this.model.startChat({
-// //         history: messages.map(msg => ({
-// //           role: msg.is_user ? "user" : "model",
-// //           parts: [{ text: msg.content }]
-// //         })),
-// //         generationConfig: {
-// //           temperature: 0.7,
-// //           maxOutputTokens: 1000
-// //         }
-// //       });
-
-// //       const prompt = `
-// //         ${this.legalContext}
-// //         Current conversation context: ${JSON.stringify(context)}
-// //         User query: ${messages[messages.length - 1].content}
-// //       `;
-
-// //       const result = await chat.sendMessage(prompt);
-
-// //       return {
-// //         response: result.response.text(),
-// //         usage: {
-// //           inputTokens: result.response.usageMetadata.promptTokenCount,
-// //           outputTokens: result.response.usageMetadata.candidatesTokenCount
-// //         }
-// //       };
-// //     } catch (error) {
-// //       console.error("Gemini API error:", error);
-// //       throw new Error("Failed to generate AI response");
-// //     }
-// //   }
-// // }
-
-// // export default new GeminiService(process.env.GEMINI_API_KEY);
-
-// --------------------------------------------------------------------------------------------------------------
-
 // src/utils/geminiService.js
 import 'dotenv/config';
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -84,6 +25,7 @@ class GeminiService {
       5. When analyzing documents, images, or audio, focus on legal implications
       6. When unsure, say "I need more context to provide an accurate legal response",
       7. Always answer for those questions without legal interfrence, which is already provided in the context, for example upon asking my organizationId, name and email you can asnwer because it has already been provided in context.
+      8. Make sure you answer in language of the question, for example if the question is in spanish answer in spanish, if the question is in english answer in english.
     `;
   }
 
@@ -120,6 +62,31 @@ class GeminiService {
       throw new Error('Failed to upload file to Gemini');
     }
   }
+
+  // utils/geminiService.js
+
+async translateText(text, targetLanguage) {
+  try {
+    // Skip translation if target is English
+    if (targetLanguage === 'en') return text;
+
+    const prompt = `
+      Translate this text to ${targetLanguage}. 
+      Maintain the same tone and formatting (including markdown like *(required)* or *(optional)*).
+      
+      Text to translate: "${text}"
+      
+      Respond with ONLY the translated text, nothing else.
+    `;
+
+    const result = await this.model.generateContent(prompt);
+    return result.response.text().trim();
+
+  } catch (error) {
+    console.error('Translation error:', error);
+    return text; // Return original on error
+  }
+}
 
   async processAttachments(attachments) {
     const processedFiles = [];
@@ -203,39 +170,88 @@ class GeminiService {
 
   // utils/geminiService.js - add this method inside the GeminiService class
 
-  async detectIntent(userMessage) {
-    try {
-      const prompt = `
-      Analyze this user message and determine their intent.
+  // async detectIntent(userMessage) {
+  //   try {
+  //     const prompt = `
+  //     Analyze this user message and determine their intent.
+      
+  //     User message: "${userMessage}"
+      
+  //     Possible intents:
+  //     - CREATE_REQUEST_FORM: User wants to create a request form or external ticket form
+  //     - CREATE_CATEGORY: User wants to create a category for internal tickets
+  //     - CREATE_INTERNAL_TICKET: User wants to create/raise an internal ticket or request
+  //     - GENERAL: General legal question or any other conversation
+      
+  //     Respond with ONLY a valid JSON object, no markdown, no backticks, no extra text:
+  //     {
+  //       "intent": "GENERAL",
+  //       "confidence": 0.9,
+  //       "language": "en"
+  //     }
+      
+  //     Language codes: en (English), hi (Hindi), es (Spanish), fr (French), de (German), etc.
+  //   `;
+
+  //     const result = await this.model.generateContent(prompt);
+  //     const text = result.response.text().trim();
+
+  //     // Strip any markdown backticks if Gemini adds them
+  //     const cleanJson = text.replace(/```json|```/g, '').trim();
+  //     const parsed = JSON.parse(cleanJson);
+
+  //     console.log('Detected intent:', parsed);
+  //     return parsed;
+
+  //   } catch (error) {
+  //     console.error('Intent detection error:', error);
+  //     // Default to GENERAL so conversation still works on failure
+  //     return { intent: 'GENERAL', confidence: 0, language: 'en' };
+  //   }
+  // }
+
+  // utils/geminiService.js
+
+async detectIntent(userMessage) {
+  try {
+    const prompt = `
+      Analyze this user message and determine both their intent and the language they're using.
       
       User message: "${userMessage}"
       
+      IMPORTANT: Detect the ACTUAL language of the user's message, not English.
+      
       Possible intents:
-      - CREATE_REQUEST_FORM: User wants to create a request form or external ticket form
-      - CREATE_CATEGORY: User wants to create a category for internal tickets
-      - CREATE_INTERNAL_TICKET: User wants to create/raise an internal ticket or request
+      - CREATE_REQUEST_FORM: User wants to create a request form, external ticket form, or "formulario de solicitud"
+      - CREATE_CATEGORY: User wants to create a category, "categoría"
+      - CREATE_INTERNAL_TICKET: User wants to create/raise an internal ticket, "ticket interno", "boleto"
       - GENERAL: General legal question or any other conversation
       
-      Respond with ONLY a valid JSON object, no markdown, no backticks, no extra text:
-      {"intent": "GENERAL", "confidence": 0.9}
+      Language detection:
+      - If message contains Spanish words → "es"
+      - If message contains English words → "en"
+      - If message contains Hindi words → "hi"
+      - If message contains French words → "fr"
+      
+      Respond with ONLY a valid JSON object:
+      {"intent": "CREATE_REQUEST_FORM", "confidence": 0.95, "language": "es"}
+      
+      No markdown, no backticks, no extra text.
     `;
 
-      const result = await this.model.generateContent(prompt);
-      const text = result.response.text().trim();
+    const result = await this.model.generateContent(prompt);
+    const text = result.response.text().trim();
+    const cleanJson = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleanJson);
 
-      // Strip any markdown backticks if Gemini adds them
-      const cleanJson = text.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(cleanJson);
+    console.log('🔍 Detected intent:', parsed);
+    return parsed;
 
-      console.log('Detected intent:', parsed);
-      return parsed;
-
-    } catch (error) {
-      console.error('Intent detection error:', error);
-      // Default to GENERAL so conversation still works on failure
-      return { intent: 'GENERAL', confidence: 0 };
-    }
+  } catch (error) {
+    console.error('Intent detection error:', error);
+    return { intent: 'GENERAL', confidence: 0, language: 'en' };
   }
+}
 
   async processAudio(audioUrl, mimeType, query = "Transcribe and analyze this audio for legal context") {
     try {
