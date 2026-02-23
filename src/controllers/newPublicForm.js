@@ -518,7 +518,7 @@ export const getFormReviewers = async (req, res, next) => {
       .from("member")
       .select("user_id")
       .eq("organization_id", organizationId)
-      .in("role", ["admin", "legal", "owner0"]);
+      .in("role", ["admin", "legal", "owner"]);
 
 
     if (memberError) {
