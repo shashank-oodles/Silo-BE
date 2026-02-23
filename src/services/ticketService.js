@@ -271,7 +271,7 @@ export const createInternalTicketService = async (collectedFields) => {
     }
 
     // Confirmation email - same as controller (non-blocking)
-    sendTicketConfirmationEmail({ to: email }).catch(err => {
+    sendTicketConfirmationEmail({ to: email, referenceId: ticket.id }).catch(err => {
       console.error("Failed to send confirmation email:", err);
     });
 

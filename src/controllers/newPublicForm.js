@@ -488,7 +488,7 @@ export const submitPublicTicket = async (req, res, next) => {
 
     // 4️⃣ Send confirmation email (non-blocking)
     try {
-      await sendTicketConfirmationEmail({ to: email });
+      await sendTicketConfirmationEmail({ to: email, referenceId: ticket.id });
     } catch (err) {
       console.error("Failed to send confirmation email:", err);
     }

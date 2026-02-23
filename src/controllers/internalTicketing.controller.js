@@ -224,6 +224,128 @@ const createCategory = async (req, res, next) => {
   }
 };
 
+// const updateCategory = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+//     const {
+//       name,
+//       assignedTeamId,
+//       reviewerId,
+//       autoReplyEnabled = false,
+//       autoReplyMessage = null,
+//       isActive = true
+//     } = req.body;
+
+//     // Validate required fields
+//     if (!id) {
+//       return res.status(400).json({
+//         error: "Category ID is required"
+//       });
+//     }
+
+//     // Check if category exists
+//     const { data: existingCategory, error: fetchError } = await supabaseAdmin
+//       .from("Category")
+//       .select("*")
+//       .eq("id", id)
+//       .maybeSingle();
+
+//     if (fetchError) {
+//       return res.status(500).json({
+//         error: "Failed to fetch category"
+//       });
+//     }
+
+//     if (!existingCategory) {
+//       return res.status(404).json({
+//         error: "Category not found"
+//       });
+//     }
+
+//     // Check for duplicate category name (if name is being updated)
+//     if (name && name !== existingCategory.name) {
+//       const { data: duplicateCategory, error: duplicateError } = await supabaseAdmin
+//         .from("Category")
+//         .select("id")
+//         .eq("name", name)
+//         .eq("organization_id", existingCategory.organization_id)
+//         .maybeSingle();
+
+//       if (duplicateError) {
+//         return res.status(500).json({
+//           error: "Failed to check for duplicate category"
+//         });
+//       }
+
+//       if (duplicateCategory) {
+//         return res.status(409).json({
+//           error: "Category with this name already exists in the organization"
+//         });
+//       }
+//     }
+
+//     // Validate team belongs to organization (if assignedTeamId is being updated)
+//     if (assignedTeamId && assignedTeamId !== existingCategory.assignedTeamId) {
+//       const { data: team, error: teamError } = await supabaseAdmin
+//         .from("team")
+//         .select("id")
+//         .eq("id", assignedTeamId)
+//         .eq("organization_id", existingCategory.organization_id)
+//         .maybeSingle();
+
+//       if (teamError) {
+//         return res.status(500).json({
+//           error: "Failed to validate assigned team"
+//         });
+//       }
+
+//       if (!team) {
+//         return res.status(400).json({
+//           error: "Assigned team does not belong to this organization"
+//         });
+//       }
+//     }
+
+//     // Update category
+//     const { data: updatedCategory, error: updateError } = await supabaseAdmin
+//       .from("Category")
+//       .update({
+//         name: name ?? existingCategory.name,
+//         assignedTeamId: assignedTeamId ?? existingCategory.assignedTeamId,
+//         reviewerId: reviewerId ?? existingCategory.reviewerId,
+//         autoReplyEnabled: autoReplyEnabled,
+//         autoReplyMessage: autoReplyEnabled ? autoReplyMessage : null,
+//         isActive: isActive,
+//         updatedBy: req.userId
+//       })
+//       .eq("id", id)
+//       .select()
+//       .single();
+
+//     if (updateError) {
+//       return res.status(500).json({
+//         error: "Failed to update category",
+//         details: updateError.message
+//       });
+//     }
+
+//     // Return updated category
+//     return res.status(200).json({
+//       id: updatedCategory.id,
+//       name: updatedCategory.name,
+//       organizationId: updatedCategory.organization_id,
+//       assignedTeamId: updatedCategory.assignedTeamId,
+//       reviewerId: updatedCategory.reviewerId,
+//       autoReplyEnabled: updatedCategory.autoReplyEnabled,
+//       autoReplyMessage: updatedCategory.autoReplyMessage,
+//       isActive: updatedCategory.isActive
+//     });
+
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
 const updateCategory = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -284,12 +406,21 @@ const updateCategory = async (req, res, next) => {
       }
     }
 
-    // Validate team belongs to organization (if assignedTeamId is being updated)
-    if (assignedTeamId && assignedTeamId !== existingCategory.assignedTeamId) {
+    // ✅ Handle "available to everyone" - set to null
+    let finalTeamId = assignedTeamId;
+
+    if (assignedTeamId &&
+      (assignedTeamId.toLowerCase() === 'available to everyone' ||
+        assignedTeamId.toLowerCase() === 'everyone')) {
+      finalTeamId = null;
+    }
+
+    // Validate team belongs to organization (only if finalTeamId is not null and being updated)
+    if (finalTeamId && finalTeamId !== existingCategory.assignedTeamId) {
       const { data: team, error: teamError } = await supabaseAdmin
         .from("team")
         .select("id")
-        .eq("id", assignedTeamId)
+        .eq("id", finalTeamId)
         .eq("organization_id", existingCategory.organization_id)
         .maybeSingle();
 
@@ -311,7 +442,7 @@ const updateCategory = async (req, res, next) => {
       .from("Category")
       .update({
         name: name ?? existingCategory.name,
-        assignedTeamId: assignedTeamId ?? existingCategory.assignedTeamId,
+        assignedTeamId: assignedTeamId !== undefined ? finalTeamId : existingCategory.assignedTeamId,
         reviewerId: reviewerId ?? existingCategory.reviewerId,
         autoReplyEnabled: autoReplyEnabled,
         autoReplyMessage: autoReplyEnabled ? autoReplyMessage : null,
@@ -345,7 +476,6 @@ const updateCategory = async (req, res, next) => {
     next(err);
   }
 };
-
 
 const updateCategoryReviewerId = async (req, res, next) => {
   try {
@@ -479,7 +609,7 @@ const createInternalTicket = async (req, res, next) => {
 
     // Confirmation email (non-blocking)
     try {
-      await sendTicketConfirmationEmail({ to: email });
+      await sendTicketConfirmationEmail({ to: email, referenceId: ticket.id });
     } catch (err) {
       console.error("Failed to send confirmation email:", err);
     }

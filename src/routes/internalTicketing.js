@@ -8,7 +8,7 @@ const router = express.Router();
 
 router.get('/get-all-teams/:organizationId',requireAuth, requireOwner, getAllTeams ) //✅
 router.post('/create-category',requireAuth, requireOwner, createCategory ) //✅
-router.patch('/update-category/:id',requireAuth, requireOwner, updateCategory ) //✅
+router.patch('/update-category/:id',requireAuth, updateCategory ) //✅
 // router.get('/get-reviewers',requireAuth, requireOwner, getFormReviewers )
 router.patch('/update-category-reviewer',requireAuth, requireOwner, updateCategoryReviewerId) //✅
 router.post('/create-internal-ticket',requireAuth, createInternalTicket ) //✅
