@@ -559,7 +559,7 @@ const getTicketStatus = async (req, res, next) => {
         )
       `)
         .eq("organization_id", organizationId)
-        .eq("createdby", userId)
+        .eq("createdBy", userId)
         .order("created_at", { ascending: false });
 
 
