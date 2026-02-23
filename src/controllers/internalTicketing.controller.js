@@ -130,9 +130,9 @@ const createCategory = async (req, res, next) => {
       autoReplyMessage = null
     } = req.body;
 
-    if (!name || !organizationId || !assignedTeamId) {
+    if (!name || !organizationId) {
       return res.status(400).json({
-        error: "name, organizationId and assignedTeamId are required"
+        error: "name and organizationId are required"
       });
     }
 
@@ -157,24 +157,26 @@ const createCategory = async (req, res, next) => {
       });
     }
 
-    // 2️⃣ Validate team belongs to organization
-    const { data: team, error: teamError } = await supabaseAdmin
-      .from("team")
-      .select("id")
-      .eq("id", assignedTeamId)
-      .eq("organization_id", organizationId)
-      .maybeSingle();
+    if (assignedTeamId) {
+      // 2️⃣ Validate team belongs to organization
+      const { data: team, error: teamError } = await supabaseAdmin
+        .from("team")
+        .select("id")
+        .eq("id", assignedTeamId)
+        .eq("organization_id", organizationId)
+        .maybeSingle();
 
-    if (teamError) {
-      return res.status(500).json({
-        error: "Failed to validate assigned team"
-      });
-    }
+      if (teamError) {
+        return res.status(500).json({
+          error: "Failed to validate assigned team"
+        });
+      }
 
-    if (!team) {
-      return res.status(400).json({
-        error: "Assigned team does not belong to this organization"
-      });
+      if (!team) {
+        return res.status(400).json({
+          error: "Assigned team does not belong to this organization"
+        });
+      }
     }
 
     // 3️⃣ Create category
@@ -183,7 +185,7 @@ const createCategory = async (req, res, next) => {
       .insert({
         name,
         organization_id: organizationId,
-        assignedTeamId,
+        assignedTeamId: assignedTeamId || null,
         reviewerId: reviewerId ?? null,
         autoReplyEnabled: autoReplyEnabled,
         autoReplyMessage: autoReplyEnabled ? autoReplyMessage : null,
@@ -577,17 +579,17 @@ const getTicketsByReviewer = async (req, res, next) => {
 
         category: ticket.category
           ? {
-              id: ticket.category.id,
-              name: ticket.category.name
-            }
+            id: ticket.category.id,
+            name: ticket.category.name
+          }
           : null,
 
         requestForm: ticket.requestForm
           ? {
-              id: ticket.requestForm.id,
-              name: ticket.requestForm.name,
-              slug: ticket.requestForm.slug
-            }
+            id: ticket.requestForm.id,
+            name: ticket.requestForm.name,
+            slug: ticket.requestForm.slug
+          }
           : null
       };
     });
