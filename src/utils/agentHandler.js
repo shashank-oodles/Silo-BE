@@ -547,7 +547,7 @@ const isEmpty = (value) => {
 
 const normalizeBoolean = (value) => {
     const v = value?.toLowerCase().trim();
-    
+
     // Multilingual support for yes/no
     const yesWords = [
         'yes', 'y',           // English
@@ -560,7 +560,7 @@ const normalizeBoolean = (value) => {
         'نعم',                // Arabic
         '是', 'shi'           // Chinese
     ];
-    
+
     return yesWords.includes(v) ? 'yes' : 'no';
 };
 
@@ -700,10 +700,10 @@ export const handleAgentMessage = async (
                 await clearAgentSession(chatId);
                 let cancelMsg = "Cancelled! How else can I help you?";
                 cancelMsg = await translateResponse(cancelMsg, session.language);
-                
-                return { 
-                    response: cancelMsg, 
-                    isAgentFlow: false 
+
+                return {
+                    response: cancelMsg,
+                    isAgentFlow: false
                 };
             }
         }
@@ -928,7 +928,7 @@ export const handleAgentMessage = async (
                     const list = formatCategoryList(categories);
                     let categoryPrompt = `Please select a category by name or number:`;
                     categoryPrompt = await translateResponse(categoryPrompt, session.language);
-                    
+
                     return {
                         response: `${intro}Let's start!\n\n${categoryPrompt}\n\n${list}`,
                         isAgentFlow: true
@@ -969,7 +969,9 @@ export const handleAgentMessage = async (
                 }
             }
 
-            const { response, usage } = await geminiService.generateResponse(messages, context);
+
+
+            const { response, usage } = await geminiService.generateResponse(messages, context, [], language || 'en');
             return { response, usage, isAgentFlow: false };
         }
 

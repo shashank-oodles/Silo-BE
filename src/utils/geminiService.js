@@ -112,61 +112,61 @@ async translateText(text, targetLanguage) {
     return processedFiles;
   }
 
-  async generateResponse(messages, context = {}, attachments = []) {
-    try {
-      // Build conversation history
-      const history = [];
+  // async generateResponse(messages, context = {}, attachments = []) {
+  //   try {
+  //     // Build conversation history
+  //     const history = [];
 
-      for (const msg of messages.slice(0, -1)) {
-        const parts = [{ text: msg.content }];
+  //     for (const msg of messages.slice(0, -1)) {
+  //       const parts = [{ text: msg.content }];
 
-        if (msg.attachments && msg.attachments.length > 0) {
-          const processedFiles = await this.processAttachments(msg.attachments);
-          parts.push(...processedFiles);
-        }
+  //       if (msg.attachments && msg.attachments.length > 0) {
+  //         const processedFiles = await this.processAttachments(msg.attachments);
+  //         parts.push(...processedFiles);
+  //       }
 
-        history.push({
-          role: msg.is_user ? "user" : "model",
-          parts
-        });
-      }
+  //       history.push({
+  //         role: msg.is_user ? "user" : "model",
+  //         parts
+  //       });
+  //     }
 
-      const chat = this.model.startChat({
-        history,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2000
-        }
-      });
+  //     const chat = this.model.startChat({
+  //       history,
+  //       generationConfig: {
+  //         temperature: 0.7,
+  //         maxOutputTokens: 2000
+  //       }
+  //     });
 
-      // Prepare current message with attachments
-      const currentMessage = messages[messages.length - 1];
-      const messageParts = [
-        {
-          text: `${this.legalContext}\nCurrent conversation context: ${JSON.stringify(context)}\nUser query: ${currentMessage.content}`
-        }
-      ];
+  //     // Prepare current message with attachments
+  //     const currentMessage = messages[messages.length - 1];
+  //     const messageParts = [
+  //       {
+  //         text: `${this.legalContext}\nCurrent conversation context: ${JSON.stringify(context)}\nUser query: ${currentMessage.content}`
+  //       }
+  //     ];
 
-      // Process current message attachments
-      if (attachments && attachments.length > 0) {
-        const processedFiles = await this.processAttachments(attachments);
-        messageParts.push(...processedFiles);
-      }
+  //     // Process current message attachments
+  //     if (attachments && attachments.length > 0) {
+  //       const processedFiles = await this.processAttachments(attachments);
+  //       messageParts.push(...processedFiles);
+  //     }
 
-      const result = await chat.sendMessage(messageParts);
+  //     const result = await chat.sendMessage(messageParts);
 
-      return {
-        response: result.response.text(),
-        usage: {
-          inputTokens: result.response.usageMetadata?.promptTokenCount || 0,
-          outputTokens: result.response.usageMetadata?.candidatesTokenCount || 0
-        }
-      };
-    } catch (error) {
-      console.error("Gemini API error:", error);
-      throw new Error(`Failed to generate AI response: ${error.message}`);
-    }
-  }
+  //     return {
+  //       response: result.response.text(),
+  //       usage: {
+  //         inputTokens: result.response.usageMetadata?.promptTokenCount || 0,
+  //         outputTokens: result.response.usageMetadata?.candidatesTokenCount || 0
+  //       }
+  //     };
+  //   } catch (error) {
+  //     console.error("Gemini API error:", error);
+  //     throw new Error(`Failed to generate AI response: ${error.message}`);
+  //   }
+  // }
 
   // utils/geminiService.js - add this method inside the GeminiService class
 
@@ -212,31 +212,156 @@ async translateText(text, targetLanguage) {
 
   // utils/geminiService.js
 
+// async detectIntent(userMessage) {
+//   try {
+//     const prompt = `
+//       Analyze this user message and determine both their intent and the language they're using.
+      
+//       User message: "${userMessage}"
+      
+//       IMPORTANT: Detect the ACTUAL language of the user's message, not English.
+      
+//       Possible intents:
+//       - CREATE_REQUEST_FORM: User wants to create a request form, external ticket form, or "formulario de solicitud"
+//       - CREATE_CATEGORY: User wants to create a category, "categoría"
+//       - CREATE_INTERNAL_TICKET: User wants to create/raise an internal ticket, "ticket interno", "boleto"
+//       - GENERAL: General legal question or any other conversation
+      
+//       Language detection:
+//       - If message contains Spanish words → "es"
+//       - If message contains English words → "en"
+//       - If message contains Hindi words → "hi"
+//       - If message contains French words → "fr"
+      
+//       Respond with ONLY a valid JSON object:
+//       {"intent": "CREATE_REQUEST_FORM", "confidence": 0.95, "language": "es"}
+      
+//       No markdown, no backticks, no extra text.
+//     `;
+
+//     const result = await this.model.generateContent(prompt);
+//     const text = result.response.text().trim();
+//     const cleanJson = text.replace(/```json|```/g, '').trim();
+//     const parsed = JSON.parse(cleanJson);
+
+//     console.log('🔍 Detected intent:', parsed);
+//     return parsed;
+
+//   } catch (error) {
+//     console.error('Intent detection error:', error);
+//     return { intent: 'GENERAL', confidence: 0, language: 'en' };
+//   }
+// }
+
+// utils/geminiService.js
+
+// utils/geminiService.js
+
+async generateResponse(messages, context = {}, attachments = [], userLanguage = 'en') {
+    try {
+        // Build conversation history
+        const history = [];
+
+        for (const msg of messages.slice(0, -1)) {
+            const parts = [{ text: msg.content }];
+
+            if (msg.attachments && msg.attachments.length > 0) {
+                const processedFiles = await this.processAttachments(msg.attachments);
+                parts.push(...processedFiles);
+            }
+
+            history.push({
+                role: msg.is_user ? "user" : "model",
+                parts
+            });
+        }
+
+        const chat = this.model.startChat({
+            history,
+            generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 2000
+            }
+        });
+
+        // ✅ Add language instruction
+        let languageInstruction = '';
+        if (userLanguage && userLanguage !== 'en') {
+            const languageNames = {
+                'es': 'Spanish (Español)',
+                'fr': 'French (Français)', 
+                'de': 'German (Deutsch)',
+                'hi': 'Hindi (हिन्दी)',
+                'pt': 'Portuguese (Português)',
+                'it': 'Italian (Italiano)',
+                'ru': 'Russian (Русский)'
+            };
+            const langName = languageNames[userLanguage] || userLanguage;
+            languageInstruction = `IMPORTANT: The user is communicating in ${langName}. Please respond in the same language (${langName}) to maintain consistency in the conversation.\n\n`;
+        }
+
+        // Prepare current message with attachments
+        const currentMessage = messages[messages.length - 1];
+        const messageParts = [
+            {
+                // ✅ Add language instruction to the prompt
+                text: `${languageInstruction}${this.legalContext}\nCurrent conversation context: ${JSON.stringify(context)}\nUser query: ${currentMessage.content}`
+            }
+        ];
+
+        // Process current message attachments
+        if (attachments && attachments.length > 0) {
+            const processedFiles = await this.processAttachments(attachments);
+            messageParts.push(...processedFiles);
+        }
+
+        const result = await chat.sendMessage(messageParts);
+
+        return {
+            response: result.response.text(),
+            usage: {
+                inputTokens: result.response.usageMetadata?.promptTokenCount || 0,
+                outputTokens: result.response.usageMetadata?.candidatesTokenCount || 0
+            }
+        };
+    } catch (error) {
+        console.error("Gemini API error:", error);
+        throw new Error(`Failed to generate AI response: ${error.message}`);
+    }
+}
+
 async detectIntent(userMessage) {
   try {
     const prompt = `
-      Analyze this user message and determine both their intent and the language they're using.
+      Analyze this user message and determine their intent.
       
       User message: "${userMessage}"
       
-      IMPORTANT: Detect the ACTUAL language of the user's message, not English.
+      BE VERY SPECIFIC about what each intent means:
       
-      Possible intents:
-      - CREATE_REQUEST_FORM: User wants to create a request form, external ticket form, or "formulario de solicitud"
-      - CREATE_CATEGORY: User wants to create a category, "categoría"
-      - CREATE_INTERNAL_TICKET: User wants to create/raise an internal ticket, "ticket interno", "boleto"
-      - GENERAL: General legal question or any other conversation
+      - CREATE_REQUEST_FORM: User wants to create a FORM/TEMPLATE that external people will fill out to submit tickets (like "crear formulario de solicitud", "make a form", "ticket submission form")
+      
+      - CREATE_CATEGORY: User wants to create a category/classification for organizing internal tickets (like "crear categoría", "make category", "nueva categoría")
+      
+      - CREATE_INTERNAL_TICKET: User wants to raise/submit a specific ticket/request (like "crear ticket", "raise ticket", "necesito ayuda con", "tengo un problema")
+      
+      - GENERAL: Everything else including:
+        * Legal document creation (contracts, NDAs, agreements)
+        * Legal advice and consultation
+        * Document review and analysis
+        * General questions about law
+        * Examples: "draft an NDA", "acuerdo de confidencialidad", "contrato", "legal advice", "what is contract law"
+      
+      IMPORTANT: If user wants to CREATE/DRAFT a legal document (like NDA, contract, agreement), this is GENERAL, NOT CREATE_REQUEST_FORM.
       
       Language detection:
-      - If message contains Spanish words → "es"
-      - If message contains English words → "en"
-      - If message contains Hindi words → "hi"
-      - If message contains French words → "fr"
+      - Spanish words → "es"
+      - English words → "en"
+      - Hindi words → "hi"
+      - French words → "fr"
       
       Respond with ONLY a valid JSON object:
-      {"intent": "CREATE_REQUEST_FORM", "confidence": 0.95, "language": "es"}
-      
-      No markdown, no backticks, no extra text.
+      {"intent": "GENERAL", "confidence": 0.95, "language": "es"}
     `;
 
     const result = await this.model.generateContent(prompt);
