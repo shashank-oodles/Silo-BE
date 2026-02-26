@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { sendChatMail } from "../lib/emails/ticketChat.js";
 import { resolveTicketEmailRecipients } from "../utils/resolveTicketEmailRecipients.js";
-import { sendChatBroadcastEmail } from "../lib/emails/sendChatBroadcastEmail.js";
+import { sendChatBroadcastEmail,sendCommentBroadcastEmail } from "../lib/emails/sendChatBroadcastEmail.js";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -377,7 +377,7 @@ const createComment = async (req, res, next) => {
       const senderName = req.user?.email ?? ticket.email;
 
       for (const email of recipients) {
-        await sendChatBroadcastEmail({
+        await sendCommentBroadcastEmail({
           to: email,
           senderName,
           ticketId: ticket.id,
