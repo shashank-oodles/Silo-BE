@@ -674,7 +674,7 @@ const getTicketDetails = async (req, res, next) => {
     //   `)
     //   .eq("id", ticketId)
 
-    const { data: tickets, error } = await supabaseAdmin
+    const { data: ticketsRaw, error } = await supabaseAdmin
       .from("Ticket")
       .select(`
     id,
@@ -688,7 +688,24 @@ const getTicketDetails = async (req, res, next) => {
     team:assignedTeamId(name),
     user:legalOwnerId(name)
   `)
-      .eq("id", ticketId)
+      .eq("id", ticketId);
+
+    // ✅ Transform the data to flatten the structure
+    const tickets = ticketsRaw.map(ticket => ({
+      id: ticket.id,
+      workflowStatus: ticket.workflowStatus,
+      priority: ticket.priority,
+      assignedTeamId: ticket.assignedTeamId,
+      legalOwnerId: ticket.legalOwnerId,
+      payload: ticket.payload,
+      description: ticket.description,
+      created_at: ticket.created_at,
+      assignedTeamName: ticket.team?.name || null,
+      legalOwnerName: ticket.user?.name || null
+    }));
+
+    // If it's a single ticket query, get the first item
+    const ticket = tickets[0];
 
     if (error) {
       return res.status(500).json({
