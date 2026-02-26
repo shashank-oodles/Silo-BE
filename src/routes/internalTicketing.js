@@ -17,8 +17,8 @@ router.get('/get-all-requests/:reviewerId/:pendingReview',requireAuth, requireOw
 router.get('/get-legal-owners/:organizationId/:assignedTeamId',requireAuth, requireOwnerLegalIncl,  getAllLegalOwners)
 router.get('/get-legal-owners/:organizationId',requireAuth, requireOwnerLegalIncl,  getAllLegalOwners) //✅
 
-router.patch('/review-ticket/:ticketId', requireAuth, requireOwner, reviewTicket) //✅
-router.get('/review-details/:ticketId', requireAuth, requireOwner, getTicketReviewDetails)
+router.patch('/review-ticket/:ticketId', requireAuth, requireOwnerLegalIncl, reviewTicket) //✅
+router.get('/review-details/:ticketId', requireAuth, requireOwnerLegalIncl, getTicketReviewDetails)
 router.get('/get-all-categories/:organizationId', requireAuth, getCategoriesByOrganization) //✅
 router.delete('/delete-category/:categoryId', requireAuth, requireOwner, deleteCategory)
 
