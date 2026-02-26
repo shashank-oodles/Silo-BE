@@ -36,3 +36,35 @@ export const requireOwner = async (req, res, next) => {
     next(err);
   }
 };
+
+export const requireOwnerLegalIncl = async (req, res, next) => {
+  try {
+    const userId = req.supabaseUserId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { data, error } = await supabaseAdmin
+            .from("member")
+            .select("*")
+            .eq("user_id", userId)
+            .single();
+
+    // console.log(data)
+
+    if (error || !data?.role) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const role = data.role;
+
+    if (role !== "owner" && role !== "admin" && role !== "legal") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
