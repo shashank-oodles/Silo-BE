@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { sendChatMail } from "../lib/emails/ticketChat.js";
 import { resolveTicketEmailRecipients } from "../utils/resolveTicketEmailRecipients.js";
-import { sendChatBroadcastEmail,sendCommentBroadcastEmail } from "../lib/emails/sendChatBroadcastEmail.js";
+import { sendChatBroadcastEmail, sendCommentBroadcastEmail } from "../lib/emails/sendChatBroadcastEmail.js";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -660,18 +660,34 @@ const getTicketDetails = async (req, res, next) => {
     }
 
     // Fetch tickets
+    // const { data: tickets, error } = await supabaseAdmin
+    //   .from("Ticket")
+    //   .select(`
+    //     id,
+    //     workflowStatus,
+    //     priority,
+    //     assignedTeamId,
+    //     legalOwnerId,
+    //     payload,
+    //     description,
+    //     created_at
+    //   `)
+    //   .eq("id", ticketId)
+
     const { data: tickets, error } = await supabaseAdmin
       .from("Ticket")
       .select(`
-        id,
-        workflowStatus,
-        priority,
-        assignedTeamId,
-        legalOwnerId,
-        payload,
-        description,
-        created_at
-      `)
+    id,
+    workflowStatus,
+    priority,
+    assignedTeamId,
+    legalOwnerId,
+    payload,
+    description,
+    created_at,
+    team:assignedTeamId(name),
+    user:legalOwnerId(name)
+  `)
       .eq("id", ticketId)
 
     if (error) {
@@ -1267,36 +1283,36 @@ const downloadCSVReport = (res, reportData) => {
     import('fs').then(async (fs) => {
       try {
         const fileName = `silo-usage-report-${new Date().toISOString().split('T')[0]}.csv`;
-        
+
         // ✅ Build CSV manually (no external library needed)
         let csvContent = 'Metric,Value,Category\n';
-        
+
         // Summary metrics
         Object.entries(reportData.summary).forEach(([key, value]) => {
           const metric = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
           csvContent += `"${metric}","${value}","Summary"\n`;
         });
-        
+
         // Users by role
         Object.entries(reportData.breakdown.usersByRole).forEach(([role, count]) => {
           csvContent += `"${role} Users","${count}","Users by Role"\n`;
         });
-        
+
         // Tickets by status
         Object.entries(reportData.breakdown.ticketsByStatus || {}).forEach(([status, count]) => {
           csvContent += `"${status} Tickets","${count}","Tickets by Status"\n`;
         });
-        
+
         // Organizations
         reportData.organizations.forEach(org => {
           csvContent += `"${org.name}","${org.userCount} users, ${org.ticketCount} tickets","Organizations"\n`;
         });
-        
+
         // ✅ Send CSV directly as response
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
         res.send(csvContent);
-        
+
       } catch (err) {
         console.error('CSV generation error:', err);
         res.status(500).json({ error: 'CSV generation failed' });
@@ -1309,9 +1325,9 @@ const downloadPDFReport = async (res, reportData) => {
   try {
     // Using puppeteer for PDF generation (install: npm install puppeteer)
     const puppeteer = await import('puppeteer');
-    
+
     const fileName = `silo-usage-report-${new Date().toISOString().split('T')[0]}.pdf`;
-    
+
     // ✅ Generate HTML content for PDF
     const htmlContent = `
       <!DOCTYPE html>
@@ -1360,9 +1376,9 @@ const downloadPDFReport = async (res, reportData) => {
             </thead>
             <tbody>
               ${Object.entries(reportData.breakdown.usersByRole).map(([role, count]) => {
-                const percentage = ((count / reportData.summary.totalUsers) * 100).toFixed(1);
-                return `<tr><td>${role}</td><td>${count}</td><td>${percentage}%</td></tr>`;
-              }).join('')}
+      const percentage = ((count / reportData.summary.totalUsers) * 100).toFixed(1);
+      return `<tr><td>${role}</td><td>${count}</td><td>${percentage}%</td></tr>`;
+    }).join('')}
             </tbody>
           </table>
         </div>
@@ -1376,9 +1392,9 @@ const downloadPDFReport = async (res, reportData) => {
             </thead>
             <tbody>
               ${Object.entries(reportData.breakdown.ticketsByStatus || {}).map(([status, count]) => {
-                const percentage = ((count / reportData.summary.totalTickets) * 100).toFixed(1);
-                return `<tr><td>${status}</td><td>${count}</td><td>${percentage}%</td></tr>`;
-              }).join('')}
+      const percentage = ((count / reportData.summary.totalTickets) * 100).toFixed(1);
+      return `<tr><td>${status}</td><td>${count}</td><td>${percentage}%</td></tr>`;
+    }).join('')}
             </tbody>
           </table>
         </div>
@@ -1409,25 +1425,25 @@ const downloadPDFReport = async (res, reportData) => {
       </body>
       </html>
     `;
-    
+
     // ✅ Generate PDF using puppeteer
     const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
     await page.setContent(htmlContent);
-    
+
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
       margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' }
     });
-    
+
     await browser.close();
-    
+
     // ✅ Send PDF as download
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(pdfBuffer);
-    
+
   } catch (err) {
     console.error('PDF generation error:', err);
     res.status(500).json({ error: 'PDF generation failed' });
@@ -1438,26 +1454,26 @@ const downloadPDFReport = async (res, reportData) => {
 //   try {
 //     // Using exceljs (install: npm install exceljs)
 //     const ExcelJS = await import('exceljs');
-    
+
 //     const fileName = `silo-usage-report-${new Date().toISOString().split('T')[0]}.xlsx`;
-    
+
 //     // ✅ Create workbook and worksheets
 //     const workbook = new ExcelJS.Workbook();
-    
+
 //     // Metadata
 //     workbook.creator = 'SILO Platform';
 //     workbook.created = new Date();
-    
+
 //     // ✅ Summary Sheet
 //     const summarySheet = workbook.addWorksheet('Summary', {
 //       headerFooter: { firstHeader: 'SILO Usage Report - Summary' }
 //     });
-    
+
 //     summarySheet.columns = [
 //       { header: 'Metric', key: 'metric', width: 30 },
 //       { header: 'Value', key: 'value', width: 15 }
 //     ];
-    
+
 //     // Add summary data
 //     Object.entries(reportData.summary).forEach(([key, value]) => {
 //       summarySheet.addRow({
@@ -1465,55 +1481,55 @@ const downloadPDFReport = async (res, reportData) => {
 //         value: value
 //       });
 //     });
-    
+
 //     // Style summary sheet header
 //     summarySheet.getRow(1).font = { bold: true, size: 12 };
 //     summarySheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3498DB' } };
 //     summarySheet.getRow(1).font.color = { argb: 'FFFFFFFF' };
-    
+
 //     // ✅ Users by Role Sheet
 //     const rolesSheet = workbook.addWorksheet('Users by Role');
-    
+
 //     rolesSheet.columns = [
 //       { header: 'Role', key: 'role', width: 20 },
 //       { header: 'Count', key: 'count', width: 15 },
 //       { header: 'Percentage', key: 'percentage', width: 15 }
 //     ];
-    
+
 //     Object.entries(reportData.breakdown.usersByRole).forEach(([role, count]) => {
 //       const percentage = ((count / reportData.summary.totalUsers) * 100).toFixed(1) + '%';
 //       rolesSheet.addRow({ role, count, percentage });
 //     });
-    
+
 //     // Style roles sheet header
 //     rolesSheet.getRow(1).font = { bold: true, size: 12 };
 //     rolesSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF27AE60' } };
 //     rolesSheet.getRow(1).font.color = { argb: 'FFFFFFFF' };
-    
+
 //     // ✅ Tickets by Status Sheet (if data exists)
 //     if (Object.keys(reportData.breakdown.ticketsByStatus || {}).length > 0) {
 //       const ticketsSheet = workbook.addWorksheet('Tickets by Status');
-      
+
 //       ticketsSheet.columns = [
 //         { header: 'Status', key: 'status', width: 20 },
 //         { header: 'Count', key: 'count', width: 15 },
 //         { header: 'Percentage', key: 'percentage', width: 15 }
 //       ];
-      
+
 //       Object.entries(reportData.breakdown.ticketsByStatus || {}).forEach(([status, count]) => {
 //         const percentage = ((count / reportData.summary.totalTickets) * 100).toFixed(1) + '%';
 //         ticketsSheet.addRow({ status, count, percentage });
 //       });
-      
+
 //       // Style tickets sheet header
 //       ticketsSheet.getRow(1).font = { bold: true, size: 12 };
 //       ticketsSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE74C3C' } };
 //       ticketsSheet.getRow(1).font.color = { argb: 'FFFFFFFF' };
 //     }
-    
+
 //     // ✅ Organizations Sheet
 //     const orgsSheet = workbook.addWorksheet('Organizations');
-    
+
 //     orgsSheet.columns = [
 //       { header: 'Organization ID', key: 'id', width: 25 },
 //       { header: 'Name', key: 'name', width: 25 },
@@ -1521,7 +1537,7 @@ const downloadPDFReport = async (res, reportData) => {
 //       { header: 'Tickets', key: 'ticketCount', width: 15 },
 //       { header: 'Categories', key: 'categoryCount', width: 15 }
 //     ];
-    
+
 //     reportData.organizations.forEach(org => {
 //       orgsSheet.addRow({
 //         id: org.id,
@@ -1531,20 +1547,20 @@ const downloadPDFReport = async (res, reportData) => {
 //         categoryCount: org.categoryCount
 //       });
 //     });
-    
+
 //     // Style organizations sheet header
 //     orgsSheet.getRow(1).font = { bold: true, size: 12 };
 //     orgsSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF9B59B6' } };
 //     orgsSheet.getRow(1).font.color = { argb: 'FFFFFFFF' };
-    
+
 //     // ✅ Generate Excel buffer
 //     const excelBuffer = await workbook.xlsx.writeBuffer();
-    
+
 //     // ✅ Send Excel as download
 //     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 //     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
 //     res.send(excelBuffer);
-    
+
 //   } catch (err) {
 //     console.error('Excel generation error:', err);
 //     res.status(500).json({ error: 'Excel generation failed' });
@@ -1556,23 +1572,23 @@ const downloadExcelReport = async (res, reportData) => {
     // ✅ Correct way to import ExcelJS with dynamic import
     const ExcelJS = await import('exceljs');
     const workbook = new ExcelJS.default.Workbook(); // Use .default for ES6 modules
-    
+
     const fileName = `silo-usage-report-${new Date().toISOString().split('T')[0]}.xlsx`;
-    
+
     // Metadata
     workbook.creator = 'SILO Platform';
     workbook.created = new Date();
-    
+
     // ✅ Summary Sheet
     const summarySheet = workbook.addWorksheet('Summary', {
       headerFooter: { firstHeader: 'SILO Usage Report - Summary' }
     });
-    
+
     summarySheet.columns = [
       { header: 'Metric', key: 'metric', width: 30 },
       { header: 'Value', key: 'value', width: 15 }
     ];
-    
+
     // Add summary data
     Object.entries(reportData.summary).forEach(([key, value]) => {
       summarySheet.addRow({
@@ -1580,67 +1596,67 @@ const downloadExcelReport = async (res, reportData) => {
         value: value
       });
     });
-    
+
     // Style summary sheet header
     summarySheet.getRow(1).font = { bold: true, size: 12 };
-    summarySheet.getRow(1).fill = { 
-      type: 'pattern', 
-      pattern: 'solid', 
-      fgColor: { argb: 'FF3498DB' } 
+    summarySheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF3498DB' }
     };
     summarySheet.getRow(1).font.color = { argb: 'FFFFFFFF' };
-    
+
     // ✅ Users by Role Sheet
     const rolesSheet = workbook.addWorksheet('Users by Role');
-    
+
     rolesSheet.columns = [
       { header: 'Role', key: 'role', width: 20 },
       { header: 'Count', key: 'count', width: 15 },
       { header: 'Percentage', key: 'percentage', width: 15 }
     ];
-    
+
     Object.entries(reportData.breakdown.usersByRole).forEach(([role, count]) => {
       const percentage = ((count / reportData.summary.totalUsers) * 100).toFixed(1) + '%';
       rolesSheet.addRow({ role, count, percentage });
     });
-    
+
     // Style roles sheet header
     rolesSheet.getRow(1).font = { bold: true, size: 12 };
-    rolesSheet.getRow(1).fill = { 
-      type: 'pattern', 
-      pattern: 'solid', 
-      fgColor: { argb: 'FF27AE60' } 
+    rolesSheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF27AE60' }
     };
     rolesSheet.getRow(1).font.color = { argb: 'FFFFFFFF' };
-    
+
     // ✅ Tickets by Status Sheet (if data exists)
     if (Object.keys(reportData.breakdown.ticketsByStatus || {}).length > 0) {
       const ticketsSheet = workbook.addWorksheet('Tickets by Status');
-      
+
       ticketsSheet.columns = [
         { header: 'Status', key: 'status', width: 20 },
         { header: 'Count', key: 'count', width: 15 },
         { header: 'Percentage', key: 'percentage', width: 15 }
       ];
-      
+
       Object.entries(reportData.breakdown.ticketsByStatus || {}).forEach(([status, count]) => {
         const percentage = ((count / reportData.summary.totalTickets) * 100).toFixed(1) + '%';
         ticketsSheet.addRow({ status, count, percentage });
       });
-      
+
       // Style tickets sheet header
       ticketsSheet.getRow(1).font = { bold: true, size: 12 };
-      ticketsSheet.getRow(1).fill = { 
-        type: 'pattern', 
-        pattern: 'solid', 
-        fgColor: { argb: 'FFE74C3C' } 
+      ticketsSheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE74C3C' }
       };
       ticketsSheet.getRow(1).font.color = { argb: 'FFFFFFFF' };
     }
-    
+
     // ✅ Organizations Sheet
     const orgsSheet = workbook.addWorksheet('Organizations');
-    
+
     orgsSheet.columns = [
       { header: 'Organization ID', key: 'id', width: 25 },
       { header: 'Name', key: 'name', width: 25 },
@@ -1649,7 +1665,7 @@ const downloadExcelReport = async (res, reportData) => {
       { header: 'Categories', key: 'categoryCount', width: 15 },
       { header: 'Forms', key: 'formCount', width: 15 }
     ];
-    
+
     reportData.organizations.forEach(org => {
       orgsSheet.addRow({
         id: org.id,
@@ -1660,24 +1676,24 @@ const downloadExcelReport = async (res, reportData) => {
         formCount: org.formCount || 0
       });
     });
-    
+
     // Style organizations sheet header
     orgsSheet.getRow(1).font = { bold: true, size: 12 };
-    orgsSheet.getRow(1).fill = { 
-      type: 'pattern', 
-      pattern: 'solid', 
-      fgColor: { argb: 'FF9B59B6' } 
+    orgsSheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF9B59B6' }
     };
     orgsSheet.getRow(1).font.color = { argb: 'FFFFFFFF' };
-    
+
     // ✅ Generate Excel buffer
     const excelBuffer = await workbook.xlsx.writeBuffer();
-    
+
     // ✅ Send Excel as download
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(excelBuffer);
-    
+
   } catch (err) {
     console.error('Excel generation error:', err);
     res.status(500).json({ error: 'Excel generation failed' });
@@ -1685,4 +1701,4 @@ const downloadExcelReport = async (res, reportData) => {
 };
 
 
-export { createTicketMessage, createComment, getTicketMessages, getTicketComments, getTicketDetails, getAllTickets, getTicketsForReview, getTicketStatus, generateUsageReport};
+export { createTicketMessage, createComment, getTicketMessages, getTicketComments, getTicketDetails, getAllTickets, getTicketsForReview, getTicketStatus, generateUsageReport };
