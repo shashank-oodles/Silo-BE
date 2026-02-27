@@ -1231,70 +1231,6 @@ const generateUsageMetrics = async (dateFilter, orgFilter) => {
   }
 };
 
-// const downloadCSVReport = (res, reportData) => {
-//   const csv = require('csv-writer');
-//   const path = require('path');
-//   const fs = require('fs');
-
-//   const fileName = `silo-usage-report-${new Date().toISOString().split('T')[0]}.csv`;
-//   const filePath = path.join('/tmp', fileName);
-
-//   const csvWriter = csv.createObjectCsvWriter({
-//     path: filePath,
-//     header: [
-//       { id: 'metric', title: 'Metric' },
-//       { id: 'value', title: 'Value' },
-//       { id: 'category', title: 'Category' }
-//     ]
-//   });
-
-//   // Flatten data for CSV
-//   const csvData = [];
-
-//   // Summary metrics
-//   Object.entries(reportData.summary).forEach(([key, value]) => {
-//     csvData.push({
-//       metric: key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
-//       value: value,
-//       category: 'Summary'
-//     });
-//   });
-
-//   // Users by role
-//   Object.entries(reportData.breakdown.usersByRole).forEach(([role, count]) => {
-//     csvData.push({
-//       metric: `${role} Users`,
-//       value: count,
-//       category: 'Users by Role'
-//     });
-//   });
-
-//   // Organizations
-//   reportData.organizations.forEach(org => {
-//     csvData.push({
-//       metric: org.name,
-//       value: `${org.userCount} users, ${org.ticketCount} tickets`,
-//       category: 'Organizations'
-//     });
-//   });
-
-//   csvWriter.writeRecords(csvData)
-//     .then(() => {
-//       res.download(filePath, fileName, (err) => {
-//         if (err) {
-//           console.error('Download error:', err);
-//           res.status(500).json({ error: 'Download failed' });
-//         }
-//         // Clean up temp file
-//         fs.unlinkSync(filePath);
-//       });
-//     })
-//     .catch(err => {
-//       console.error('CSV generation error:', err);
-//       res.status(500).json({ error: 'CSV generation failed' });
-//     });
-// };
-
 const downloadCSVReport = (res, reportData) => {
   import('path').then(async (path) => {
     import('fs').then(async (fs) => {
@@ -1338,125 +1274,329 @@ const downloadCSVReport = (res, reportData) => {
   });
 };
 
+// const downloadPDFReport = async (res, reportData) => {
+//   try {
+//     // Using puppeteer for PDF generation (install: npm install puppeteer)
+//     const puppeteer = await import('puppeteer');
+
+//     const fileName = `silo-usage-report-${new Date().toISOString().split('T')[0]}.pdf`;
+
+//     // ✅ Generate HTML content for PDF
+//     const htmlContent = `
+//       <!DOCTYPE html>
+//       <html>
+//       <head>
+//         <meta charset="UTF-8">
+//         <title>SILO Usage Report</title>
+//         <style>
+//           body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+//           .header { text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 20px; margin-bottom: 30px; }
+//           .section { margin-bottom: 30px; }
+//           .section h2 { color: #2c3e50; border-left: 4px solid #3498db; padding-left: 15px; }
+//           .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+//           .metric-card { background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db; }
+//           .metric-value { font-size: 24px; font-weight: bold; color: #2c3e50; }
+//           .metric-label { color: #7f8c8d; font-size: 14px; margin-top: 5px; }
+//           table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+//           th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+//           th { background-color: #f8f9fa; font-weight: bold; color: #2c3e50; }
+//           .footer { text-align: center; margin-top: 40px; color: #7f8c8d; font-size: 12px; border-top: 1px solid #ddd; padding-top: 20px; }
+//         </style>
+//       </head>
+//       <body>
+//         <div class="header">
+//           <h1>SILO Usage Report</h1>
+//           <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+//         </div>
+        
+//         <div class="section">
+//           <h2>Summary Metrics</h2>
+//           <div class="metric-grid">
+//             ${Object.entries(reportData.summary).map(([key, value]) => `
+//               <div class="metric-card">
+//                 <div class="metric-value">${value}</div>
+//                 <div class="metric-label">${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</div>
+//               </div>
+//             `).join('')}
+//           </div>
+//         </div>
+        
+//         <div class="section">
+//           <h2>Users by Role</h2>
+//           <table>
+//             <thead>
+//               <tr><th>Role</th><th>Count</th><th>Percentage</th></tr>
+//             </thead>
+//             <tbody>
+//               ${Object.entries(reportData.breakdown.usersByRole).map(([role, count]) => {
+//       const percentage = ((count / reportData.summary.totalUsers) * 100).toFixed(1);
+//       return `<tr><td>${role}</td><td>${count}</td><td>${percentage}%</td></tr>`;
+//     }).join('')}
+//             </tbody>
+//           </table>
+//         </div>
+        
+//         ${Object.keys(reportData.breakdown.ticketsByStatus || {}).length > 0 ? `
+//         <div class="section">
+//           <h2>Tickets by Status</h2>
+//           <table>
+//             <thead>
+//               <tr><th>Status</th><th>Count</th><th>Percentage</th></tr>
+//             </thead>
+//             <tbody>
+//               ${Object.entries(reportData.breakdown.ticketsByStatus || {}).map(([status, count]) => {
+//       const percentage = ((count / reportData.summary.totalTickets) * 100).toFixed(1);
+//       return `<tr><td>${status}</td><td>${count}</td><td>${percentage}%</td></tr>`;
+//     }).join('')}
+//             </tbody>
+//           </table>
+//         </div>
+//         ` : ''}
+        
+//         <div class="section">
+//           <h2>Organizations</h2>
+//           <table>
+//             <thead>
+//               <tr><th>Organization</th><th>Users</th><th>Tickets</th><th>Categories</th></tr>
+//             </thead>
+//             <tbody>
+//               ${reportData.organizations.map(org => `
+//                 <tr>
+//                   <td>${org.name}</td>
+//                   <td>${org.userCount}</td>
+//                   <td>${org.ticketCount}</td>
+//                   <td>${org.categoryCount}</td>
+//                 </tr>
+//               `).join('')}
+//             </tbody>
+//           </table>
+//         </div>
+        
+//         <div class="footer">
+//           <p>Generated by SILO - Legal AI Assistant Platform</p>
+//         </div>
+//       </body>
+//       </html>
+//     `;
+
+//     // ✅ Generate PDF using puppeteer
+//     const browser = await puppeteer.launch({ headless: true });
+//     const page = await browser.newPage();
+//     await page.setContent(htmlContent);
+
+//     const pdfBuffer = await page.pdf({
+//       format: 'A4',
+//       printBackground: true,
+//       margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' }
+//     });
+
+//     await browser.close();
+
+//     // ✅ Send PDF as download
+//     res.setHeader('Content-Type', 'application/pdf');
+//     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+//     res.send(pdfBuffer);
+
+//   } catch (err) {
+//     console.error('PDF generation error:', err);
+//     res.status(500).json({ error: 'PDF generation failed' });
+//   }
+// };
+
 const downloadPDFReport = async (res, reportData) => {
   try {
-    // Using puppeteer for PDF generation (install: npm install puppeteer)
-    const puppeteer = await import('puppeteer');
+    // ✅ Import jsPDF and autotable plugin correctly
+    const jsPDFModule = await import('jspdf');
+    const autoTable = await import('jspdf-autotable');
 
     const fileName = `silo-usage-report-${new Date().toISOString().split('T')[0]}.pdf`;
 
-    // ✅ Generate HTML content for PDF
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>SILO Usage Report</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
-          .header { text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 20px; margin-bottom: 30px; }
-          .section { margin-bottom: 30px; }
-          .section h2 { color: #2c3e50; border-left: 4px solid #3498db; padding-left: 15px; }
-          .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-          .metric-card { background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db; }
-          .metric-value { font-size: 24px; font-weight: bold; color: #2c3e50; }
-          .metric-label { color: #7f8c8d; font-size: 14px; margin-top: 5px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-          th { background-color: #f8f9fa; font-weight: bold; color: #2c3e50; }
-          .footer { text-align: center; margin-top: 40px; color: #7f8c8d; font-size: 12px; border-top: 1px solid #ddd; padding-top: 20px; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>SILO Usage Report</h1>
-          <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-        </div>
-        
-        <div class="section">
-          <h2>Summary Metrics</h2>
-          <div class="metric-grid">
-            ${Object.entries(reportData.summary).map(([key, value]) => `
-              <div class="metric-card">
-                <div class="metric-value">${value}</div>
-                <div class="metric-label">${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-        
-        <div class="section">
-          <h2>Users by Role</h2>
-          <table>
-            <thead>
-              <tr><th>Role</th><th>Count</th><th>Percentage</th></tr>
-            </thead>
-            <tbody>
-              ${Object.entries(reportData.breakdown.usersByRole).map(([role, count]) => {
-      const percentage = ((count / reportData.summary.totalUsers) * 100).toFixed(1);
-      return `<tr><td>${role}</td><td>${count}</td><td>${percentage}%</td></tr>`;
-    }).join('')}
-            </tbody>
-          </table>
-        </div>
-        
-        ${Object.keys(reportData.breakdown.ticketsByStatus || {}).length > 0 ? `
-        <div class="section">
-          <h2>Tickets by Status</h2>
-          <table>
-            <thead>
-              <tr><th>Status</th><th>Count</th><th>Percentage</th></tr>
-            </thead>
-            <tbody>
-              ${Object.entries(reportData.breakdown.ticketsByStatus || {}).map(([status, count]) => {
-      const percentage = ((count / reportData.summary.totalTickets) * 100).toFixed(1);
-      return `<tr><td>${status}</td><td>${count}</td><td>${percentage}%</td></tr>`;
-    }).join('')}
-            </tbody>
-          </table>
-        </div>
-        ` : ''}
-        
-        <div class="section">
-          <h2>Organizations</h2>
-          <table>
-            <thead>
-              <tr><th>Organization</th><th>Users</th><th>Tickets</th><th>Categories</th></tr>
-            </thead>
-            <tbody>
-              ${reportData.organizations.map(org => `
-                <tr>
-                  <td>${org.name}</td>
-                  <td>${org.userCount}</td>
-                  <td>${org.ticketCount}</td>
-                  <td>${org.categoryCount}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-        
-        <div class="footer">
-          <p>Generated by SILO - Legal AI Assistant Platform</p>
-        </div>
-      </body>
-      </html>
-    `;
+    // ✅ Create jsPDF instance
+    let doc;
+    if (jsPDFModule.jsPDF) {
+      doc = new jsPDFModule.jsPDF();
+    } else if (jsPDFModule.default) {
+      doc = new jsPDFModule.default();
+    } else {
+      doc = new jsPDFModule();
+    }
+    
+    // ✅ Header Section
+    doc.setFontSize(24);
+    doc.setTextColor(44, 62, 80);
+    doc.text('SILO Usage Report', 105, 30, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.setTextColor(127, 140, 141);
+    doc.text(`Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 105, 40, { align: 'center' });
+    
+    // Add horizontal line
+    doc.setDrawColor(44, 62, 80);
+    doc.setLineWidth(0.5);
+    doc.line(20, 50, 190, 50);
 
-    // ✅ Generate PDF using puppeteer
-    const browser = await puppeteer.launch({ headless: true });
-    const page = await browser.newPage();
-    await page.setContent(htmlContent);
+    let currentY = 70;
 
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' }
+    // ✅ Summary Metrics Section
+    doc.setFontSize(16);
+    doc.setTextColor(44, 62, 80);
+    doc.text('Summary Metrics', 20, currentY);
+    
+    const summaryEntries = Object.entries(reportData.summary);
+    const summaryData = summaryEntries.map(([key, value]) => [
+      key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
+      value.toString()
+    ]);
+    
+    // ✅ Use autoTable.default instead of doc.autoTable
+    autoTable.default(doc, {
+      startY: currentY + 10,
+      head: [['Metric', 'Value']],
+      body: summaryData,
+      theme: 'grid',
+      headStyles: { 
+        fillColor: [52, 152, 219],
+        textColor: [255, 255, 255],
+        fontSize: 12,
+        fontStyle: 'bold'
+      },
+      bodyStyles: { fontSize: 11 },
+      columnStyles: {
+        0: { cellWidth: 120 },
+        1: { cellWidth: 50, halign: 'right' }
+      },
+      margin: { left: 20, right: 20 }
     });
 
-    await browser.close();
+    currentY = doc.lastAutoTable.finalY + 25;
 
-    // ✅ Send PDF as download
+    // ✅ Users by Role Section
+    doc.setFontSize(16);
+    doc.setTextColor(44, 62, 80);
+    doc.text('Users by Role', 20, currentY);
+    
+    const roleData = Object.entries(reportData.breakdown.usersByRole).map(([role, count]) => {
+      const percentage = ((count / reportData.summary.totalUsers) * 100).toFixed(1) + '%';
+      return [role, count.toString(), percentage];
+    });
+    
+    autoTable.default(doc, {
+      startY: currentY + 10,
+      head: [['Role', 'Count', 'Percentage']],
+      body: roleData,
+      theme: 'grid',
+      headStyles: { 
+        fillColor: [39, 174, 96],
+        textColor: [255, 255, 255],
+        fontSize: 12,
+        fontStyle: 'bold'
+      },
+      bodyStyles: { fontSize: 11 },
+      columnStyles: {
+        0: { cellWidth: 80 },
+        1: { cellWidth: 40, halign: 'center' },
+        2: { cellWidth: 50, halign: 'center' }
+      },
+      margin: { left: 20, right: 20 }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 25;
+
+    // ✅ Tickets by Status Section (conditional)
+    if (Object.keys(reportData.breakdown.ticketsByStatus || {}).length > 0) {
+      if (currentY > 230) {
+        doc.addPage();
+        currentY = 30;
+      }
+
+      doc.setFontSize(16);
+      doc.setTextColor(44, 62, 80);
+      doc.text('Tickets by Status', 20, currentY);
+      
+      const ticketData = Object.entries(reportData.breakdown.ticketsByStatus || {}).map(([status, count]) => {
+        const percentage = ((count / reportData.summary.totalTickets) * 100).toFixed(1) + '%';
+        return [status, count.toString(), percentage];
+      });
+      
+      autoTable.default(doc, {
+        startY: currentY + 10,
+        head: [['Status', 'Count', 'Percentage']],
+        body: ticketData,
+        theme: 'grid',
+        headStyles: { 
+          fillColor: [231, 76, 60],
+          textColor: [255, 255, 255],
+          fontSize: 12,
+          fontStyle: 'bold'
+        },
+        bodyStyles: { fontSize: 11 },
+        columnStyles: {
+          0: { cellWidth: 80 },
+          1: { cellWidth: 40, halign: 'center' },
+          2: { cellWidth: 50, halign: 'center' }
+        },
+        margin: { left: 20, right: 20 }
+      });
+
+      currentY = doc.lastAutoTable.finalY + 25;
+    }
+
+    // ✅ Organizations Section
+    if (currentY > 200) {
+      doc.addPage();
+      currentY = 30;
+    }
+
+    doc.setFontSize(16);
+    doc.setTextColor(44, 62, 80);
+    doc.text('Organizations', 20, currentY);
+    
+    const orgData = reportData.organizations.map(org => [
+      org.name,
+      org.userCount.toString(),
+      org.ticketCount.toString(),
+      org.categoryCount.toString()
+    ]);
+    
+    autoTable.default(doc, {
+      startY: currentY + 10,
+      head: [['Organization', 'Users', 'Tickets', 'Categories']],
+      body: orgData,
+      theme: 'grid',
+      headStyles: { 
+        fillColor: [155, 89, 182],
+        textColor: [255, 255, 255],
+        fontSize: 12,
+        fontStyle: 'bold'
+      },
+      bodyStyles: { fontSize: 11 },
+      columnStyles: {
+        0: { cellWidth: 80 },
+        1: { cellWidth: 30, halign: 'center' },
+        2: { cellWidth: 30, halign: 'center' },
+        3: { cellWidth: 30, halign: 'center' }
+      },
+      margin: { left: 20, right: 20 }
+    });
+
+    // ✅ Footer on all pages
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      
+      doc.setDrawColor(221, 221, 221);
+      doc.setLineWidth(0.3);
+      doc.line(20, doc.internal.pageSize.height - 20, 190, doc.internal.pageSize.height - 20);
+      
+      doc.setFontSize(8);
+      doc.setTextColor(127, 140, 141);
+      doc.text('Generated by SILO - Legal AI Assistant Platform', 105, doc.internal.pageSize.height - 12, { align: 'center' });
+      doc.text(`Page ${i} of ${pageCount}`, 190, doc.internal.pageSize.height - 12, { align: 'right' });
+    }
+
+    // ✅ Generate PDF buffer and send response
+    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+    
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(pdfBuffer);
@@ -1466,123 +1606,6 @@ const downloadPDFReport = async (res, reportData) => {
     res.status(500).json({ error: 'PDF generation failed' });
   }
 };
-
-// const downloadExcelReport = async (res, reportData) => {
-//   try {
-//     // Using exceljs (install: npm install exceljs)
-//     const ExcelJS = await import('exceljs');
-
-//     const fileName = `silo-usage-report-${new Date().toISOString().split('T')[0]}.xlsx`;
-
-//     // ✅ Create workbook and worksheets
-//     const workbook = new ExcelJS.Workbook();
-
-//     // Metadata
-//     workbook.creator = 'SILO Platform';
-//     workbook.created = new Date();
-
-//     // ✅ Summary Sheet
-//     const summarySheet = workbook.addWorksheet('Summary', {
-//       headerFooter: { firstHeader: 'SILO Usage Report - Summary' }
-//     });
-
-//     summarySheet.columns = [
-//       { header: 'Metric', key: 'metric', width: 30 },
-//       { header: 'Value', key: 'value', width: 15 }
-//     ];
-
-//     // Add summary data
-//     Object.entries(reportData.summary).forEach(([key, value]) => {
-//       summarySheet.addRow({
-//         metric: key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
-//         value: value
-//       });
-//     });
-
-//     // Style summary sheet header
-//     summarySheet.getRow(1).font = { bold: true, size: 12 };
-//     summarySheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3498DB' } };
-//     summarySheet.getRow(1).font.color = { argb: 'FFFFFFFF' };
-
-//     // ✅ Users by Role Sheet
-//     const rolesSheet = workbook.addWorksheet('Users by Role');
-
-//     rolesSheet.columns = [
-//       { header: 'Role', key: 'role', width: 20 },
-//       { header: 'Count', key: 'count', width: 15 },
-//       { header: 'Percentage', key: 'percentage', width: 15 }
-//     ];
-
-//     Object.entries(reportData.breakdown.usersByRole).forEach(([role, count]) => {
-//       const percentage = ((count / reportData.summary.totalUsers) * 100).toFixed(1) + '%';
-//       rolesSheet.addRow({ role, count, percentage });
-//     });
-
-//     // Style roles sheet header
-//     rolesSheet.getRow(1).font = { bold: true, size: 12 };
-//     rolesSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF27AE60' } };
-//     rolesSheet.getRow(1).font.color = { argb: 'FFFFFFFF' };
-
-//     // ✅ Tickets by Status Sheet (if data exists)
-//     if (Object.keys(reportData.breakdown.ticketsByStatus || {}).length > 0) {
-//       const ticketsSheet = workbook.addWorksheet('Tickets by Status');
-
-//       ticketsSheet.columns = [
-//         { header: 'Status', key: 'status', width: 20 },
-//         { header: 'Count', key: 'count', width: 15 },
-//         { header: 'Percentage', key: 'percentage', width: 15 }
-//       ];
-
-//       Object.entries(reportData.breakdown.ticketsByStatus || {}).forEach(([status, count]) => {
-//         const percentage = ((count / reportData.summary.totalTickets) * 100).toFixed(1) + '%';
-//         ticketsSheet.addRow({ status, count, percentage });
-//       });
-
-//       // Style tickets sheet header
-//       ticketsSheet.getRow(1).font = { bold: true, size: 12 };
-//       ticketsSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE74C3C' } };
-//       ticketsSheet.getRow(1).font.color = { argb: 'FFFFFFFF' };
-//     }
-
-//     // ✅ Organizations Sheet
-//     const orgsSheet = workbook.addWorksheet('Organizations');
-
-//     orgsSheet.columns = [
-//       { header: 'Organization ID', key: 'id', width: 25 },
-//       { header: 'Name', key: 'name', width: 25 },
-//       { header: 'Users', key: 'userCount', width: 15 },
-//       { header: 'Tickets', key: 'ticketCount', width: 15 },
-//       { header: 'Categories', key: 'categoryCount', width: 15 }
-//     ];
-
-//     reportData.organizations.forEach(org => {
-//       orgsSheet.addRow({
-//         id: org.id,
-//         name: org.name,
-//         userCount: org.userCount,
-//         ticketCount: org.ticketCount,
-//         categoryCount: org.categoryCount
-//       });
-//     });
-
-//     // Style organizations sheet header
-//     orgsSheet.getRow(1).font = { bold: true, size: 12 };
-//     orgsSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF9B59B6' } };
-//     orgsSheet.getRow(1).font.color = { argb: 'FFFFFFFF' };
-
-//     // ✅ Generate Excel buffer
-//     const excelBuffer = await workbook.xlsx.writeBuffer();
-
-//     // ✅ Send Excel as download
-//     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-//     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-//     res.send(excelBuffer);
-
-//   } catch (err) {
-//     console.error('Excel generation error:', err);
-//     res.status(500).json({ error: 'Excel generation failed' });
-//   }
-// };
 
 const downloadExcelReport = async (res, reportData) => {
   try {
