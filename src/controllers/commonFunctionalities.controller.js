@@ -342,9 +342,9 @@ const createComment = async (req, res, next) => {
       return res.status(403).json({ error: "Only internal users can comment" });
     }
 
-    if (senderType === "MEMBER") {
-      return res.status(403).json({ error: "Members are not allowed to comment" });
-    }
+    // if (senderType === "MEMBER") {
+    //   return res.status(403).json({ error: "Members are not allowed to comment" });
+    // }
 
     // Insert message
     const { data: newComment, error: insertError } = await supabaseAdmin
