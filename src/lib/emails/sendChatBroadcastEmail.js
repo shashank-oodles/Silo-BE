@@ -31,7 +31,7 @@ export const sendCommentBroadcastEmail = async ({
   to,
   senderName,
   ticketId,
-  message,
+  comment,
 //   ticketUrl
 }) => {
   await transporter.sendMail({
@@ -42,7 +42,7 @@ export const sendCommentBroadcastEmail = async ({
       <p><strong>${senderName}</strong> sent a new comment:</p>
 
       <blockquote style="background:#f5f5f5;padding:10px;">
-        ${message}
+        ${comment}
       </blockquote>
 
       <small>This is an automated notification.</small>
