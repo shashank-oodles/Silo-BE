@@ -263,6 +263,7 @@
 import 'dotenv/config';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GoogleAIFileManager } from "@google/generative-ai/server";
+import mammoth from 'mammoth';
 import fetch from 'node-fetch';
 import os from 'os';
 import path from 'path';
@@ -522,29 +523,85 @@ class GeminiService {
     }
   }
 
-  async processAttachments(attachments) {
-    const processedFiles = [];
+  // async processAttachments(attachments) {
+  //   const processedFiles = [];
 
-    for (const attachment of attachments) {
-      try {
-        const geminiFile = await this.uploadFileToGemini(
-          attachment.url,
-          attachment.mimeType
-        );
+  //   for (const attachment of attachments) {
+  //     try {
+  //       const geminiFile = await this.uploadFileToGemini(
+  //         attachment.url,
+  //         attachment.mimeType
+  //       );
 
-        processedFiles.push({
-          fileData: {
-            mimeType: geminiFile.mimeType,
-            fileUri: geminiFile.uri
-          }
-        });
-      } catch (error) {
-        console.error(`Failed to process attachment: ${attachment.fileName}`, error);
-      }
-    }
+  //       processedFiles.push({
+  //         fileData: {
+  //           mimeType: geminiFile.mimeType,
+  //           fileUri: geminiFile.uri
+  //         }
+  //       });
+  //     } catch (error) {
+  //       console.error(`Failed to process attachment: ${attachment.fileName}`, error);
+  //     }
+  //   }
 
-    return processedFiles;
+  //   return processedFiles;
+  // }
+
+  // Add this to your GeminiService class
+
+async extractTextFromDocx(buffer) {
+  try {
+    const result = await mammoth.extractRawText({ buffer });
+    return result.value; // Extracted text
+  } catch (error) {
+    console.error('Error extracting text from DOCX:', error);
+    throw new Error('Failed to extract text from Word document');
   }
+}
+
+// ✅ Updated processAttachments method
+async processAttachments(attachments) {
+  const processedFiles = [];
+
+  for (const attachment of attachments) {
+    try {
+      // ✅ Handle .docx files specially - extract text instead of uploading binary
+      if (attachment.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        // Download the file and extract text
+        const response = await fetch(attachment.url);
+        const buffer = Buffer.from(await response.arrayBuffer());
+        
+        // Extract text from .docx
+        const extractedText = await this.extractTextFromDocx(buffer);
+        
+        // Add as text content instead of file upload
+        processedFiles.push({
+          text: `Document content from ${attachment.fileName}:\n\n${extractedText}`
+        });
+        
+        console.log(`📄 Extracted text from ${attachment.fileName}: ${extractedText.substring(0, 100)}...`);
+        continue;
+      }
+
+      // ✅ Handle other supported file types normally
+      const geminiFile = await this.uploadFileToGemini(
+        attachment.url,
+        attachment.mimeType
+      );
+
+      processedFiles.push({
+        fileData: {
+          mimeType: geminiFile.mimeType,
+          fileUri: geminiFile.uri
+        }
+      });
+    } catch (error) {
+      console.error(`Failed to process attachment: ${attachment.fileName}`, error);
+    }
+  }
+
+  return processedFiles;
+}
 
   async processAudio(audioUrl, mimeType, query = "Transcribe and analyze this audio for legal context") {
     try {
