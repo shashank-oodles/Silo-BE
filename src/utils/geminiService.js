@@ -274,7 +274,7 @@ class GeminiService {
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.fileManager = new GoogleAIFileManager(apiKey);
     this.model = this.genAI.getGenerativeModel({
-      model: "gemma-3-4b-it"
+      model: "gemini-2.5-flash"
     });
 
     this.legalContext = `
