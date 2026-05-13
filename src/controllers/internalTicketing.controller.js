@@ -77,7 +77,7 @@ const getAllLegalOwners = async (req, res, next) => {
       .from("member")
       .select("user_id")
       .eq("organization_id", organizationId)
-      .eq("role", "legal");
+      .eq("role", "legal", "admin");
 
     if (assignedTeamId) {
       if (memberIds.length === 0) {
